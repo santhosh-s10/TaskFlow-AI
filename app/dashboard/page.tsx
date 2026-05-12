@@ -1,98 +1,214 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import {
+  BarChart3Icon,
+  FolderPlusIcon,
+  LineChartIcon,
+  ListChecksIcon,
+} from "lucide-react"
+
 import { AppSidebar } from "@/components/app-sidebar"
+import { ChartAreaInteractive } from "@/components/chart-area-interactive"
+import { DashboardStats } from "@/components/dashboard/dashboard-stats"
+import { ProjectForm } from "@/components/projects/project-form"
+import { ProjectList } from "@/components/projects/project-list"
 import { SiteHeader } from "@/components/site-header"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { TaskForm } from "@/components/tasks/task-form"
+import { TaskList } from "@/components/tasks/task-list"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DashboardStats } from "@/components/dashboard/dashboard-stats"
-import { ChartAreaInteractive } from "@/components/chart-area-interactive"
-import { ProjectList } from "@/components/projects/project-list"
-import { ProjectForm } from "@/components/projects/project-form"
-import { TaskList } from "@/components/tasks/task-list"
-import { TaskForm } from "@/components/tasks/task-form"
-import { mockProjects, mockTasks } from "@/lib/mock-data"
-import { Project, Task } from "@/types"
-import { BarChart3Icon, FolderPlusIcon, LineChartIcon, ListChecksIcon } from "lucide-react"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import type { Project, Task } from "@/types"
 
-type ViewMode = 'list' | 'create' | 'edit'
-type ActiveTab = 'overview' | 'projects' | 'tasks'
+type ViewMode = "list" | "create" | "edit"
+type ActiveView = "overview" | "projects" | "tasks"
 
-export default function DashboardPage() {
-  const [projects, setProjects] = useState<Project[]>(mockProjects)
-  const [tasks, setTasks] = useState<Task[]>(mockTasks)
-  const [activeTab, setActiveTab] = useState<ActiveTab>('overview')
-  const [projectViewMode, setProjectViewMode] = useState<ViewMode>('list')
-  const [taskViewMode, setTaskViewMode] = useState<ViewMode>('list')
+async function readJsonResponse<T>(response: Response): Promise<T> {
+  const data = await response.json()
+
+  if (!response.ok) {
+    throw new Error(data.error || "Request failed")
+  }
+
+  return data
+}
+
+function DashboardContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const tab = searchParams.get("tab")
+  const activeView: ActiveView =
+    tab === "projects" || tab === "tasks" ? tab : "overview"
+
+  const [projects, setProjects] = useState<Project[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState("")
+  const [projectViewMode, setProjectViewMode] = useState<ViewMode>("list")
+  const [taskViewMode, setTaskViewMode] = useState<ViewMode>("list")
   const [editingProject, setEditingProject] = useState<Project | undefined>()
   const [editingTask, setEditingTask] = useState<Task | undefined>()
 
-  const handleProjectSubmit = (projectData: Partial<Project>) => {
-    if (editingProject) {
-      setProjects(prev => prev.map(p => 
-        p.id === editingProject.id 
-          ? { ...p, ...projectData, updatedAt: new Date().toISOString() }
-          : p
-      ))
-    } else {
-      const newProject: Project = {
-        id: Date.now().toString(),
-        ...projectData as Omit<Project, 'id'>,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
-      setProjects(prev => [...prev, newProject])
+  const loadDashboardData = useCallback(async () => {
+    setIsLoading(true)
+    setError("")
+
+    try {
+      const [projectsResponse, tasksResponse] = await Promise.all([
+        fetch("/api/projects", { cache: "no-store" }),
+        fetch("/api/tasks", { cache: "no-store" }),
+      ])
+
+      const [{ projects }, { tasks }] = await Promise.all([
+        readJsonResponse<{ projects: Project[] }>(projectsResponse),
+        readJsonResponse<{ tasks: Task[] }>(tasksResponse),
+      ])
+
+      setProjects(projects)
+      setTasks(tasks)
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unable to load dashboard data")
+    } finally {
+      setIsLoading(false)
     }
-    setProjectViewMode('list')
-    setEditingProject(undefined)
+  }, [])
+
+  useEffect(() => {
+    const timeout = window.setTimeout(loadDashboardData, 0)
+    return () => window.clearTimeout(timeout)
+  }, [loadDashboardData])
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setProjectViewMode("list")
+      setTaskViewMode("list")
+      setEditingProject(undefined)
+      setEditingTask(undefined)
+    }, 0)
+
+    return () => window.clearTimeout(timeout)
+  }, [activeView])
+
+  const navigateTo = (view: ActiveView) => {
+    router.push(view === "overview" ? "/dashboard" : `/dashboard?tab=${view}`)
   }
 
-  const handleTaskSubmit = (taskData: Partial<Task>) => {
-    if (editingTask) {
-      setTasks(prev => prev.map(t => 
-        t.id === editingTask.id 
-          ? { ...t, ...taskData, updatedAt: new Date().toISOString() }
-          : t
-      ))
-    } else {
-      const newTask: Task = {
-        id: Date.now().toString(),
-        ...taskData as Omit<Task, 'id'>,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
-      setTasks(prev => [...prev, newTask])
+  const handleProjectSubmit = async (projectData: Partial<Project>) => {
+    setIsSaving(true)
+    setError("")
+
+    try {
+      const response = await fetch(
+        editingProject ? `/api/projects/${editingProject.id}` : "/api/projects",
+        {
+          method: editingProject ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(projectData),
+        }
+      )
+      const { project } = await readJsonResponse<{ project: Project }>(response)
+
+      setProjects((previousProjects) =>
+        editingProject
+          ? previousProjects.map((item) => (item.id === project.id ? project : item))
+          : [project, ...previousProjects]
+      )
+      setProjectViewMode("list")
+      setEditingProject(undefined)
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unable to save project")
+    } finally {
+      setIsSaving(false)
     }
-    setTaskViewMode('list')
-    setEditingTask(undefined)
   }
 
-  const handleDeleteProject = (projectId: string) => {
-    setProjects(prev => prev.filter(p => p.id !== projectId))
-    setTasks(prev => prev.filter(t => t.projectId !== projectId))
+  const handleTaskSubmit = async (taskData: Partial<Task>) => {
+    setIsSaving(true)
+    setError("")
+
+    try {
+      const response = await fetch(editingTask ? `/api/tasks/${editingTask.id}` : "/api/tasks", {
+        method: editingTask ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(taskData),
+      })
+      const { task } = await readJsonResponse<{ task: Task }>(response)
+
+      setTasks((previousTasks) =>
+        editingTask
+          ? previousTasks.map((item) => (item.id === task.id ? task : item))
+          : [task, ...previousTasks]
+      )
+      setTaskViewMode("list")
+      setEditingTask(undefined)
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unable to save task")
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  const handleDeleteTask = (taskId: string) => {
-    setTasks(prev => prev.filter(t => t.id !== taskId))
+  const handleDeleteProject = async (projectId: string) => {
+    setError("")
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, { method: "DELETE" })
+      await readJsonResponse<{ success: boolean }>(response)
+      setProjects((previousProjects) =>
+        previousProjects.filter((project) => project.id !== projectId)
+      )
+      setTasks((previousTasks) => previousTasks.filter((task) => task.projectId !== projectId))
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unable to delete project")
+    }
   }
 
-  const handleToggleTaskComplete = (taskId: string, completed: boolean) => {
-    setTasks(prev => prev.map(t => 
-      t.id === taskId 
-        ? { ...t, status: completed ? 'completed' : 'todo', updatedAt: new Date().toISOString() }
-        : t
-    ))
+  const handleDeleteTask = async (taskId: string) => {
+    setError("")
+
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, { method: "DELETE" })
+      await readJsonResponse<{ success: boolean }>(response)
+      setTasks((previousTasks) => previousTasks.filter((task) => task.id !== taskId))
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unable to delete task")
+    }
   }
 
-  const calculateStats = () => {
-    const completedTasks = tasks.filter(task => task.status === 'completed').length
-    const pendingTasks = tasks.filter(task => task.status === 'todo').length
-    const overdueTasks = tasks.filter(task => {
-      const dueDate = new Date(task.dueDate)
-      const today = new Date()
-      return dueDate < today && task.status !== 'completed'
+  const handleToggleTaskComplete = async (taskId: string, completed: boolean) => {
+    const task = tasks.find((item) => item.id === taskId)
+    if (!task) {
+      return
+    }
+
+    setError("")
+
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...task,
+          status: completed ? "completed" : "todo",
+        }),
+      })
+      const { task: updatedTask } = await readJsonResponse<{ task: Task }>(response)
+      setTasks((previousTasks) =>
+        previousTasks.map((item) => (item.id === updatedTask.id ? updatedTask : item))
+      )
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unable to update task")
+    }
+  }
+
+  const stats = useMemo(() => {
+    const completedTasks = tasks.filter((task) => task.status === "completed").length
+    const pendingTasks = tasks.filter((task) => task.status === "todo").length
+    const overdueTasks = tasks.filter((task) => {
+      return new Date(task.dueDate) < new Date() && task.status !== "completed"
     }).length
 
     return {
@@ -102,7 +218,7 @@ export default function DashboardPage() {
       pendingTasks,
       overdueTasks,
     }
-  }
+  }, [projects.length, tasks])
 
   const capabilityCards = [
     {
@@ -110,8 +226,8 @@ export default function DashboardPage() {
       description: "Start a new workspace for upcoming work.",
       icon: FolderPlusIcon,
       action: () => {
-        setActiveTab('projects')
-        setProjectViewMode('create')
+        navigateTo("projects")
+        setProjectViewMode("create")
       },
       label: "New project",
     },
@@ -119,24 +235,121 @@ export default function DashboardPage() {
       title: "Manage tasks",
       description: "Review priorities, ownership, and due dates.",
       icon: ListChecksIcon,
-      action: () => setActiveTab('tasks'),
+      action: () => navigateTo("tasks"),
       label: "View tasks",
     },
     {
       title: "Track productivity",
       description: "Watch completion and pending work trends.",
       icon: LineChartIcon,
-      action: () => setActiveTab('overview'),
+      action: () => navigateTo("overview"),
       label: "Open overview",
     },
     {
       title: "View analytics",
       description: "Use charts to understand work velocity.",
       icon: BarChart3Icon,
-      action: () => setActiveTab('overview'),
+      action: () => navigateTo("overview"),
       label: "View chart",
     },
   ]
+
+  const renderOverview = () => (
+    <div className="space-y-6">
+      <ChartAreaInteractive />
+      <DashboardStats stats={stats} />
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {capabilityCards.map((item) => (
+          <Card key={item.title}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-sm font-medium">{item.title}</CardTitle>
+              <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                <item.icon className="size-4" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">{item.description}</p>
+              <Button size="sm" variant="outline" onClick={item.action}>
+                {item.label}
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ProjectList
+          projects={projects.slice(0, 5)}
+          tasks={tasks}
+          onView={() => navigateTo("projects")}
+        />
+        <TaskList
+          tasks={tasks.slice(0, 5)}
+          projects={projects}
+          onView={() => navigateTo("tasks")}
+        />
+      </div>
+    </div>
+  )
+
+  const renderProjects = () =>
+    projectViewMode === "list" ? (
+      <ProjectList
+        projects={projects}
+        tasks={tasks}
+        onCreate={() => setProjectViewMode("create")}
+        onEdit={(project) => {
+          setEditingProject(project)
+          setProjectViewMode("edit")
+        }}
+        onDelete={handleDeleteProject}
+        onView={(project) => {
+          setEditingProject(project)
+          setProjectViewMode("edit")
+        }}
+      />
+    ) : (
+      <ProjectForm
+        project={editingProject}
+        onSubmit={handleProjectSubmit}
+        onCancel={() => {
+          setProjectViewMode("list")
+          setEditingProject(undefined)
+        }}
+        isLoading={isSaving}
+      />
+    )
+
+  const renderTasks = () =>
+    taskViewMode === "list" ? (
+      <TaskList
+        tasks={tasks}
+        projects={projects}
+        onCreate={() => setTaskViewMode("create")}
+        onEdit={(task) => {
+          setEditingTask(task)
+          setTaskViewMode("edit")
+        }}
+        onDelete={handleDeleteTask}
+        onToggleComplete={handleToggleTaskComplete}
+        onView={(task) => {
+          setEditingTask(task)
+          setTaskViewMode("edit")
+        }}
+      />
+    ) : (
+      <TaskForm
+        task={editingTask}
+        projects={projects}
+        onSubmit={handleTaskSubmit}
+        onCancel={() => {
+          setTaskViewMode("list")
+          setEditingTask(undefined)
+        }}
+        isLoading={isSaving}
+      />
+    )
 
   return (
     <SidebarProvider
@@ -152,125 +365,44 @@ export default function DashboardPage() {
         <SiteHeader />
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
-            <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-              <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActiveTab)} className="px-4 lg:px-6">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="overview">Overview</TabsTrigger>
-                  <TabsTrigger value="projects">Projects</TabsTrigger>
-                  <TabsTrigger value="tasks">Tasks</TabsTrigger>
-                </TabsList>
+            <div className="flex flex-col gap-4 px-4 py-4 md:gap-6 md:py-6 lg:px-6">
+              {error && (
+                <Card className="border-destructive/30 bg-destructive/5">
+                  <CardContent className="py-3 text-sm text-destructive">{error}</CardContent>
+                </Card>
+              )}
 
-                <TabsContent value="overview" className="space-y-6">
-                  <ChartAreaInteractive />
-                  <DashboardStats stats={calculateStats()} />
-
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    {capabilityCards.map((item) => (
-                      <Card key={item.title}>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                          <CardTitle className="text-sm font-medium">{item.title}</CardTitle>
-                          <div className="rounded-lg bg-primary/10 p-2 text-primary">
-                            <item.icon className="size-4" />
-                          </div>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          <p className="text-sm text-muted-foreground">{item.description}</p>
-                          <Button size="sm" variant="outline" onClick={item.action}>
-                            {item.label}
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                  
-                  <div className="grid gap-6 lg:grid-cols-2">
-                    <div>
-                      <h3 className="text-lg font-semibold mb-4">Recent Projects</h3>
-                      <ProjectList
-                        projects={projects.slice(0, 5)}
-                        tasks={tasks}
-                        onView={(project) => {
-                          setEditingProject(project)
-                          setActiveTab('projects')
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold mb-4">Recent Tasks</h3>
-                      <TaskList
-                        tasks={tasks.slice(0, 5)}
-                        projects={projects}
-                        onView={(task) => {
-                          setEditingTask(task)
-                          setActiveTab('tasks')
-                        }}
-                      />
-                    </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="projects" className="space-y-6">
-                  {projectViewMode === 'list' ? (
-                    <ProjectList
-                      projects={projects}
-                      tasks={tasks}
-                      onCreate={() => setProjectViewMode('create')}
-                      onEdit={(project) => {
-                        setEditingProject(project)
-                        setProjectViewMode('edit')
-                      }}
-                      onDelete={handleDeleteProject}
-                      onView={(project) => {
-                        setEditingProject(project)
-                        setProjectViewMode('edit')
-                      }}
-                    />
-                  ) : (
-                    <ProjectForm
-                      project={editingProject}
-                      onSubmit={handleProjectSubmit}
-                      onCancel={() => {
-                        setProjectViewMode('list')
-                        setEditingProject(undefined)
-                      }}
-                    />
-                  )}
-                </TabsContent>
-
-                <TabsContent value="tasks" className="space-y-6">
-                  {taskViewMode === 'list' ? (
-                    <TaskList
-                      tasks={tasks}
-                      projects={projects}
-                      onCreate={() => setTaskViewMode('create')}
-                      onEdit={(task) => {
-                        setEditingTask(task)
-                        setTaskViewMode('edit')
-                      }}
-                      onDelete={handleDeleteTask}
-                      onToggleComplete={handleToggleTaskComplete}
-                      onView={(task) => {
-                        setEditingTask(task)
-                        setTaskViewMode('edit')
-                      }}
-                    />
-                  ) : (
-                    <TaskForm
-                      task={editingTask}
-                      projects={projects}
-                      onSubmit={handleTaskSubmit}
-                      onCancel={() => {
-                        setTaskViewMode('list')
-                        setEditingTask(undefined)
-                      }}
-                    />
-                  )}
-                </TabsContent>
-              </Tabs>
+              {isLoading ? (
+                <Card>
+                  <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                    Loading dashboard data...
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  {activeView === "overview" && renderOverview()}
+                  {activeView === "projects" && renderProjects()}
+                  {activeView === "tasks" && renderTasks()}
+                </>
+              )}
             </div>
           </div>
         </div>
       </SidebarInset>
     </SidebarProvider>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-svh bg-background p-6 text-sm text-muted-foreground">
+          Loading dashboard...
+        </div>
+      }
+    >
+      <DashboardContent />
+    </Suspense>
   )
 }

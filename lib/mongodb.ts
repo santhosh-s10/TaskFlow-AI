@@ -6,9 +6,6 @@ if (!MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable inside .env.local')
 }
 
-// Debug: Log the connection URI (with password masked)
-console.log('MongoDB URI:', MONGODB_URI.replace(/:([^@]+)@/, ':***@'))
-
 declare global {
   var mongoose: {
     conn: mongoose.Connection | null
