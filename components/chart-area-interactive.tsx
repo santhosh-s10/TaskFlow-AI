@@ -127,36 +127,31 @@ const chartData = [
 ]
 
 const chartConfig = {
-  visitors: {
-    label: "Visitors",
+  productivity: {
+    label: "Productivity",
   },
   desktop: {
-    label: "Desktop",
-    color: "var(--primary)",
+    label: "Completed",
+    color: "hsl(var(--primary))",
   },
   mobile: {
-    label: "Mobile",
-    color: "var(--primary)",
+    label: "Created",
+    color: "var(--chart-2)",
   },
 } satisfies ChartConfig
 
 export function ChartAreaInteractive() {
   const isMobile = useIsMobile()
   const [timeRange, setTimeRange] = React.useState("90d")
-
-  React.useEffect(() => {
-    if (isMobile) {
-      setTimeRange("7d")
-    }
-  }, [isMobile])
+  const selectedTimeRange = isMobile && timeRange === "90d" ? "7d" : timeRange
 
   const filteredData = chartData.filter((item) => {
     const date = new Date(item.date)
     const referenceDate = new Date("2024-06-30")
     let daysToSubtract = 90
-    if (timeRange === "30d") {
+    if (selectedTimeRange === "30d") {
       daysToSubtract = 30
-    } else if (timeRange === "7d") {
+    } else if (selectedTimeRange === "7d") {
       daysToSubtract = 7
     }
     const startDate = new Date(referenceDate)
@@ -167,17 +162,17 @@ export function ChartAreaInteractive() {
   return (
     <Card className="@container/card">
       <CardHeader>
-        <CardTitle>Total Visitors</CardTitle>
+        <CardTitle>Productivity Analytics</CardTitle>
         <CardDescription>
           <span className="hidden @[540px]/card:block">
-            Total for the last 3 months
+            Completed and created tasks over the last 3 months
           </span>
-          <span className="@[540px]/card:hidden">Last 3 months</span>
+          <span className="@[540px]/card:hidden">Task activity</span>
         </CardDescription>
         <CardAction>
           <ToggleGroup
             type="single"
-            value={timeRange}
+            value={selectedTimeRange}
             onValueChange={setTimeRange}
             variant="outline"
             className="hidden *:data-[slot=toggle-group-item]:px-4! @[767px]/card:flex"
@@ -186,7 +181,7 @@ export function ChartAreaInteractive() {
             <ToggleGroupItem value="30d">Last 30 days</ToggleGroupItem>
             <ToggleGroupItem value="7d">Last 7 days</ToggleGroupItem>
           </ToggleGroup>
-          <Select value={timeRange} onValueChange={setTimeRange}>
+          <Select value={selectedTimeRange} onValueChange={setTimeRange}>
             <SelectTrigger
               className="flex w-40 **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate @[767px]/card:hidden"
               size="sm"

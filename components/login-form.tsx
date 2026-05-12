@@ -49,30 +49,24 @@ export function LoginForm({
     setSuccess('')
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password
-        })
+      const callbackUrl =
+        new URLSearchParams(window.location.search).get('callbackUrl') || '/dashboard'
+      const result = await signIn('credentials', {
+        email: formData.email,
+        password: formData.password,
+        redirect: false,
+        callbackUrl,
       })
 
-      const data = await response.json()
-
-      if (response.ok) {
+      if (result?.ok) {
         setSuccess('Login successful! Redirecting to dashboard...')
-        // Store user data in localStorage or state management
-        localStorage.setItem('user', JSON.stringify(data.user))
         setTimeout(() => {
-          router.push('/dashboard') // You'll need to create this page
+          router.push(result.url || callbackUrl)
         }, 1500)
       } else {
-        setError(data.error || 'Login failed')
+        setError('Invalid email or password')
       }
-    } catch (error) {
+    } catch {
       setError('An error occurred. Please try again.')
     } finally {
       setIsLoading(false)
@@ -157,7 +151,7 @@ export function LoginForm({
                   {isLoading ? 'Logging in...' : 'Login'}
                 </Button>
                 <FieldDescription className="text-center">
-                  Don&apos;t have an account? <Link href="/signup" className="text-blue-600 hover:underline">Sign up</Link>
+                  Don&apos;t have an account? <Link href="/signup" className="text-primary hover:underline">Sign up</Link>
                 </FieldDescription>
               </Field>
             </FieldGroup>
@@ -165,8 +159,8 @@ export function LoginForm({
         </CardContent>
       </Card>
       <FieldDescription className="px-6 text-center">
-        By clicking continue, you agree to our <a href="#" className="text-blue-600 hover:underline">Terms of Service</a>{" "}
-        and <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a>.
+        By clicking continue, you agree to our <a href="#" className="text-primary hover:underline">Terms of Service</a>{" "}
+        and <a href="#" className="text-primary hover:underline">Privacy Policy</a>.
       </FieldDescription>
     </div>
   )

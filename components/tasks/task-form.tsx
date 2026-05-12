@@ -23,8 +23,19 @@ interface TaskFormProps {
   isLoading?: boolean
 }
 
+type TaskFormData = {
+  title: string
+  description: string
+  status: Task['status']
+  priority: Task['priority']
+  projectId: string
+  assignedTo: string
+  tags: string[]
+  dueDate: Date
+}
+
 export function TaskForm({ task, projects, onSubmit, onCancel, isLoading }: TaskFormProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<TaskFormData>({
     title: task?.title || '',
     description: task?.description || '',
     status: task?.status || 'todo' as Task['status'],
@@ -46,7 +57,7 @@ export function TaskForm({ task, projects, onSubmit, onCancel, isLoading }: Task
     })
   }
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = <K extends keyof TaskFormData>(field: K, value: TaskFormData[K]) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
@@ -130,7 +141,7 @@ export function TaskForm({ task, projects, onSubmit, onCancel, isLoading }: Task
               <Label>Status</Label>
               <Select
                 value={formData.status}
-                onValueChange={(value) => handleInputChange('status', value)}
+                onValueChange={(value) => handleInputChange('status', value as Task['status'])}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
@@ -149,7 +160,7 @@ export function TaskForm({ task, projects, onSubmit, onCancel, isLoading }: Task
               <Label>Priority</Label>
               <Select
                 value={formData.priority}
-                onValueChange={(value) => handleInputChange('priority', value)}
+                onValueChange={(value) => handleInputChange('priority', value as Task['priority'])}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select priority" />

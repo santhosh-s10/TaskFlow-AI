@@ -21,8 +21,16 @@ interface ProjectFormProps {
   isLoading?: boolean
 }
 
+type ProjectFormData = {
+  name: string
+  description: string
+  status: Project['status']
+  priority: Project['priority']
+  dueDate: Date
+}
+
 export function ProjectForm({ project, onSubmit, onCancel, isLoading }: ProjectFormProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ProjectFormData>({
     name: project?.name || '',
     description: project?.description || '',
     status: project?.status || 'planning' as Project['status'],
@@ -39,7 +47,7 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading }: ProjectF
     })
   }
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = <K extends keyof ProjectFormData>(field: K, value: ProjectFormData[K]) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
@@ -80,7 +88,7 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading }: ProjectF
               <Label>Status</Label>
               <Select
                 value={formData.status}
-                onValueChange={(value) => handleInputChange('status', value)}
+                onValueChange={(value) => handleInputChange('status', value as Project['status'])}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
@@ -98,7 +106,7 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading }: ProjectF
               <Label>Priority</Label>
               <Select
                 value={formData.priority}
-                onValueChange={(value) => handleInputChange('priority', value)}
+                onValueChange={(value) => handleInputChange('priority', value as Project['priority'])}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select priority" />

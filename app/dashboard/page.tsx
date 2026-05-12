@@ -5,13 +5,17 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DashboardStats } from "@/components/dashboard/dashboard-stats"
+import { ChartAreaInteractive } from "@/components/chart-area-interactive"
 import { ProjectList } from "@/components/projects/project-list"
 import { ProjectForm } from "@/components/projects/project-form"
 import { TaskList } from "@/components/tasks/task-list"
 import { TaskForm } from "@/components/tasks/task-form"
 import { mockProjects, mockTasks } from "@/lib/mock-data"
 import { Project, Task } from "@/types"
+import { BarChart3Icon, FolderPlusIcon, LineChartIcon, ListChecksIcon } from "lucide-react"
 
 type ViewMode = 'list' | 'create' | 'edit'
 type ActiveTab = 'overview' | 'projects' | 'tasks'
@@ -100,6 +104,40 @@ export default function DashboardPage() {
     }
   }
 
+  const capabilityCards = [
+    {
+      title: "Create projects",
+      description: "Start a new workspace for upcoming work.",
+      icon: FolderPlusIcon,
+      action: () => {
+        setActiveTab('projects')
+        setProjectViewMode('create')
+      },
+      label: "New project",
+    },
+    {
+      title: "Manage tasks",
+      description: "Review priorities, ownership, and due dates.",
+      icon: ListChecksIcon,
+      action: () => setActiveTab('tasks'),
+      label: "View tasks",
+    },
+    {
+      title: "Track productivity",
+      description: "Watch completion and pending work trends.",
+      icon: LineChartIcon,
+      action: () => setActiveTab('overview'),
+      label: "Open overview",
+    },
+    {
+      title: "View analytics",
+      description: "Use charts to understand work velocity.",
+      icon: BarChart3Icon,
+      action: () => setActiveTab('overview'),
+      label: "View chart",
+    },
+  ]
+
   return (
     <SidebarProvider
       style={
@@ -123,13 +161,34 @@ export default function DashboardPage() {
                 </TabsList>
 
                 <TabsContent value="overview" className="space-y-6">
+                  <ChartAreaInteractive />
                   <DashboardStats stats={calculateStats()} />
+
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    {capabilityCards.map((item) => (
+                      <Card key={item.title}>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                          <CardTitle className="text-sm font-medium">{item.title}</CardTitle>
+                          <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                            <item.icon className="size-4" />
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <p className="text-sm text-muted-foreground">{item.description}</p>
+                          <Button size="sm" variant="outline" onClick={item.action}>
+                            {item.label}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                   
                   <div className="grid gap-6 lg:grid-cols-2">
                     <div>
                       <h3 className="text-lg font-semibold mb-4">Recent Projects</h3>
                       <ProjectList
                         projects={projects.slice(0, 5)}
+                        tasks={tasks}
                         onView={(project) => {
                           setEditingProject(project)
                           setActiveTab('projects')
@@ -154,6 +213,7 @@ export default function DashboardPage() {
                   {projectViewMode === 'list' ? (
                     <ProjectList
                       projects={projects}
+                      tasks={tasks}
                       onCreate={() => setProjectViewMode('create')}
                       onEdit={(project) => {
                         setEditingProject(project)

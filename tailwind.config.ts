@@ -14,6 +14,10 @@ const config: Config = {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        // Custom color palette
+        "electric-lavender": "#8B5CF6",
+        "soft-gray-white": "#F8FAFC",
+        "rich-black": "#111827",
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",

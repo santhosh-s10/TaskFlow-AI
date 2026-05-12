@@ -1,8 +1,7 @@
 "use client"
 
 import type { DashboardStats } from "@/types"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FolderIcon, CheckCircleIcon, ClockIcon, AlertTriangleIcon, ListTodoIcon } from "lucide-react"
 
 interface DashboardStatsProps {
@@ -16,40 +15,40 @@ export function DashboardStats({ stats }: DashboardStatsProps) {
       value: stats.totalProjects,
       description: "Active projects",
       icon: <FolderIcon className="h-4 w-4" />,
-      color: "text-blue-600",
-      bgColor: "bg-blue-50",
+      color: "text-primary",
+      bgColor: "bg-primary/10",
     },
     {
       title: "Total Tasks",
       value: stats.totalTasks,
       description: "All tasks across projects",
       icon: <ListTodoIcon className="h-4 w-4" />,
-      color: "text-purple-600",
-      bgColor: "bg-purple-50",
+      color: "text-primary",
+      bgColor: "bg-primary/10",
     },
     {
       title: "Completed Tasks",
       value: stats.completedTasks,
       description: "Tasks marked as done",
       icon: <CheckCircleIcon className="h-4 w-4" />,
-      color: "text-green-600",
-      bgColor: "bg-green-50",
+      color: "text-foreground",
+      bgColor: "bg-secondary",
     },
     {
       title: "Pending Tasks",
       value: stats.pendingTasks,
       description: "Tasks to be completed",
       icon: <ClockIcon className="h-4 w-4" />,
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
+      color: "text-primary",
+      bgColor: "bg-accent",
     },
     {
       title: "Overdue Tasks",
       value: stats.overdueTasks,
       description: "Tasks past due date",
       icon: <AlertTriangleIcon className="h-4 w-4" />,
-      color: "text-red-600",
-      bgColor: "bg-red-50",
+      color: "text-destructive",
+      bgColor: "bg-destructive/10",
     },
   ]
 

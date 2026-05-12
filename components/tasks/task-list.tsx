@@ -1,15 +1,52 @@
 "use client"
 
-import { useState } from "react"
-import { Task, Project } from "@/types"
+import { useMemo, useState } from "react"
+import { format } from "date-fns"
+import {
+  CalendarIcon,
+  EditIcon,
+  EyeIcon,
+  ListChecksIcon,
+  MoreHorizontalIcon,
+  PlusIcon,
+  SearchIcon,
+  Trash2Icon,
+} from "lucide-react"
+
+import type { Project, Task } from "@/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { MoreHorizontal, Edit, Trash2, Plus, Eye, Calendar } from "lucide-react"
-import { format } from "date-fns"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { cn } from "@/lib/utils"
 
 interface TaskListProps {
   tasks: Task[]
@@ -21,156 +58,276 @@ interface TaskListProps {
   onToggleComplete?: (taskId: string, completed: boolean) => void
 }
 
-const statusColors = {
-  'todo': 'bg-gray-100 text-gray-800',
-  'in-progress': 'bg-blue-100 text-blue-800',
-  'completed': 'bg-green-100 text-green-800',
+const statusLabels: Record<Task["status"], string> = {
+  todo: "To do",
+  "in-progress": "In progress",
+  completed: "Completed",
 }
 
-const priorityColors = {
-  'low': 'bg-gray-100 text-gray-800',
-  'medium': 'bg-orange-100 text-orange-800',
-  'high': 'bg-red-100 text-red-800',
+const priorityLabels: Record<Task["priority"], string> = {
+  low: "Low",
+  medium: "Medium",
+  high: "High",
 }
 
-export function TaskList({ 
-  tasks, 
-  projects, 
-  onEdit, 
-  onDelete, 
-  onView, 
-  onCreate, 
-  onToggleComplete 
+const statusClasses: Record<Task["status"], string> = {
+  todo: "bg-muted text-muted-foreground",
+  "in-progress": "bg-primary/10 text-primary",
+  completed: "bg-foreground text-background",
+}
+
+const priorityClasses: Record<Task["priority"], string> = {
+  low: "bg-muted text-muted-foreground",
+  medium: "bg-accent text-accent-foreground",
+  high: "bg-destructive/10 text-destructive",
+}
+
+export function TaskList({
+  tasks,
+  projects = [],
+  onEdit,
+  onDelete,
+  onView,
+  onCreate,
+  onToggleComplete,
 }: TaskListProps) {
+  const [query, setQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState<Task["status"] | "all">("all")
+  const [priorityFilter, setPriorityFilter] = useState<Task["priority"] | "all">("all")
+  const [projectFilter, setProjectFilter] = useState<string>("all")
+
+  const projectNameById = useMemo(() => {
+    return new Map(projects.map((project) => [project.id, project.name]))
+  }, [projects])
+
   const getProjectName = (projectId: string) => {
-    return projects?.find(p => p.id === projectId)?.name || 'Unknown Project'
+    return projectNameById.get(projectId) || "Unknown project"
   }
 
   const isOverdue = (task: Task) => {
-    const dueDate = new Date(task.dueDate)
-    const today = new Date()
-    return dueDate < today && task.status !== 'completed'
+    return new Date(task.dueDate) < new Date() && task.status !== "completed"
   }
+
+  const filteredTasks = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase()
+
+    return tasks.filter((task) => {
+      const projectName = projectNameById.get(task.projectId) || "Unknown project"
+      const matchesSearch =
+        !normalizedQuery ||
+        task.title.toLowerCase().includes(normalizedQuery) ||
+        task.description.toLowerCase().includes(normalizedQuery) ||
+        projectName.toLowerCase().includes(normalizedQuery) ||
+        task.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery))
+      const matchesStatus = statusFilter === "all" || task.status === statusFilter
+      const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter
+      const matchesProject = projectFilter === "all" || task.projectId === projectFilter
+
+      return matchesSearch && matchesStatus && matchesPriority && matchesProject
+    })
+  }, [priorityFilter, projectFilter, projectNameById, query, statusFilter, tasks])
+
+  const openTasks = tasks.filter((task) => task.status !== "completed").length
+  const overdueTasks = tasks.filter(isOverdue).length
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>Tasks</CardTitle>
-          <CardDescription>Manage and track your tasks across all projects</CardDescription>
+      <CardHeader className="gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="space-y-1">
+          <CardTitle>Task Management</CardTitle>
+          <CardDescription>
+            Search, filter, assign, prioritize, and complete tasks by project.
+          </CardDescription>
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Badge variant="secondary">{openTasks} open</Badge>
+            <Badge variant={overdueTasks > 0 ? "destructive" : "secondary"}>
+              {overdueTasks} overdue
+            </Badge>
+          </div>
         </div>
         {onCreate && (
-          <Button onClick={onCreate} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            New Task
+          <Button onClick={onCreate}>
+            <PlusIcon className="size-4" />
+            New task
           </Button>
         )}
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 lg:grid-cols-[1fr_180px_180px_220px]">
+          <div className="relative">
+            <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search tasks, tags, projects..."
+              className="pl-9"
+            />
+          </div>
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => setStatusFilter(value as Task["status"] | "all")}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="todo">To do</SelectItem>
+              <SelectItem value="in-progress">In progress</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={priorityFilter}
+            onValueChange={(value) => setPriorityFilter(value as Task["priority"] | "all")}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Priority" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All priorities</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="low">Low</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={projectFilter} onValueChange={setProjectFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Project" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All projects</SelectItem>
+              {projects.map((project) => (
+                <SelectItem key={project.id} value={project.id}>
+                  {project.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[40px]"></TableHead>
+              <TableHead className="w-10" />
               <TableHead>Task</TableHead>
               <TableHead>Project</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Priority</TableHead>
-              <TableHead>Assigned To</TableHead>
-              <TableHead>Due Date</TableHead>
-              <TableHead className="w-[100px]">Actions</TableHead>
+              <TableHead>Owner</TableHead>
+              <TableHead>Due date</TableHead>
+              <TableHead className="w-[72px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tasks.map((task) => (
-              <TableRow key={task.id} className={task.status === 'completed' ? 'opacity-60' : ''}>
-                <TableCell>
-                  {onToggleComplete && (
-                    <Checkbox
-                      checked={task.status === 'completed'}
-                      onCheckedChange={(checked) => onToggleComplete(task.id, checked as boolean)}
-                    />
-                  )}
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <div className={`font-medium ${isOverdue(task) ? 'text-red-600' : ''}`}>
-                      {task.title}
-                    </div>
-                    <div className="text-sm text-muted-foreground line-clamp-1">
-                      {task.description}
-                    </div>
-                    {task.tags.length > 0 && (
-                      <div className="flex gap-1 mt-1">
-                        {task.tags.map((tag, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
+            {filteredTasks.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="h-32 text-center">
+                  <div className="mx-auto flex max-w-sm flex-col items-center gap-2 text-muted-foreground">
+                    <ListChecksIcon className="size-8 text-primary" />
+                    <p className="font-medium text-foreground">No tasks found</p>
+                    <p className="text-sm">
+                      Try a different search, clear filters, or create a task for a project.
+                    </p>
                   </div>
-                </TableCell>
-                <TableCell>
-                  <div className="text-sm">
-                    {getProjectName(task.projectId)}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge className={statusColors[task.status]}>
-                    {task.status.replace('-', ' ')}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge className={priorityColors[task.priority]}>
-                    {task.priority}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="text-sm">
-                    {task.assignedTo || 'Unassigned'}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className={`text-sm flex items-center gap-1 ${isOverdue(task) ? 'text-red-600' : ''}`}>
-                    <Calendar className="h-3 w-3" />
-                    {format(new Date(task.dueDate), 'MMM dd')}
-                    {isOverdue(task) && <span className="text-xs">(Overdue)</span>}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {onView && (
-                        <DropdownMenuItem onClick={() => onView(task)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          View
-                        </DropdownMenuItem>
-                      )}
-                      {onEdit && (
-                        <DropdownMenuItem onClick={() => onEdit(task)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                      )}
-                      {onDelete && (
-                        <DropdownMenuItem 
-                          onClick={() => onDelete(task.id)}
-                          className="text-red-600"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filteredTasks.map((task) => (
+                <TableRow key={task.id} className={cn(task.status === "completed" && "opacity-65")}>
+                  <TableCell>
+                    {onToggleComplete && (
+                      <Checkbox
+                        checked={task.status === "completed"}
+                        aria-label={`Mark ${task.title} complete`}
+                        onCheckedChange={(checked) => onToggleComplete(task.id, checked === true)}
+                      />
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="min-w-60 space-y-2">
+                      <div
+                        className={cn(
+                          "font-medium",
+                          task.status === "completed" && "line-through",
+                          isOverdue(task) && "text-destructive"
+                        )}
+                      >
+                        {task.title}
+                      </div>
+                      <div className="line-clamp-1 text-sm text-muted-foreground">
+                        {task.description}
+                      </div>
+                      {task.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {task.tags.map((tag) => (
+                            <Badge key={tag} variant="outline">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm">{getProjectName(task.projectId)}</TableCell>
+                  <TableCell>
+                    <Badge className={statusClasses[task.status]}>
+                      {statusLabels[task.status]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={priorityClasses[task.priority]}>
+                      {priorityLabels[task.priority]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm">{task.assignedTo || "Unassigned"}</TableCell>
+                  <TableCell>
+                    <div
+                      className={cn(
+                        "flex items-center gap-2 text-sm",
+                        isOverdue(task) && "text-destructive"
+                      )}
+                    >
+                      <CalendarIcon className="size-4" />
+                      {format(new Date(task.dueDate), "MMM dd")}
+                      {isOverdue(task) && <span className="text-xs">Overdue</span>}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon-sm" aria-label="Open task actions">
+                          <MoreHorizontalIcon className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {onView && (
+                          <DropdownMenuItem onClick={() => onView(task)}>
+                            <EyeIcon className="size-4" />
+                            View
+                          </DropdownMenuItem>
+                        )}
+                        {onEdit && (
+                          <DropdownMenuItem onClick={() => onEdit(task)}>
+                            <EditIcon className="size-4" />
+                            Edit
+                          </DropdownMenuItem>
+                        )}
+                        {onDelete && (
+                          <DropdownMenuItem
+                            onClick={() => onDelete(task.id)}
+                            className="text-destructive"
+                          >
+                            <Trash2Icon className="size-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </CardContent>

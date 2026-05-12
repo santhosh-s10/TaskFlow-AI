@@ -80,14 +80,20 @@ export function SignupForm({
       const data = await response.json()
 
       if (response.ok) {
-        setSuccess('Account created successfully! Redirecting to login...')
+        setSuccess('Account created successfully! Redirecting to dashboard...')
+        await signIn('credentials', {
+          email: formData.email,
+          password: formData.password,
+          redirect: false,
+          callbackUrl: '/dashboard',
+        })
         setTimeout(() => {
-          router.push('/login')
+          router.push('/dashboard')
         }, 2000)
       } else {
         setError(data.error || 'Failed to create account')
       }
-    } catch (error) {
+    } catch {
       setError('An error occurred. Please try again.')
     } finally {
       setIsLoading(false)
@@ -194,7 +200,7 @@ export function SignupForm({
                   {isLoading ? 'Creating Account...' : 'Create Account'}
                 </Button>
                 <FieldDescription className="text-center">
-                  Already have an account? <Link href="/login" className="text-blue-600 hover:underline">Sign in</Link>
+                  Already have an account? <Link href="/login" className="text-primary hover:underline">Sign in</Link>
                 </FieldDescription>
               </Field>
             </FieldGroup>
@@ -202,8 +208,8 @@ export function SignupForm({
         </CardContent>
       </Card>
       <FieldDescription className="px-6 text-center">
-        By clicking continue, you agree to our <a href="#" className="text-blue-600 hover:underline">Terms of Service</a>{" "}
-        and <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a>.
+        By clicking continue, you agree to our <a href="#" className="text-primary hover:underline">Terms of Service</a>{" "}
+        and <a href="#" className="text-primary hover:underline">Privacy Policy</a>.
       </FieldDescription>
     </div>
   )
