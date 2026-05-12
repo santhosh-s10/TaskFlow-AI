@@ -11,7 +11,9 @@ import {
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { ChartAreaInteractive } from "@/components/chart-area-interactive"
+import { AnalyticsDashboard } from "@/components/dashboard/analytics-dashboard"
 import { DashboardStats } from "@/components/dashboard/dashboard-stats"
+import { TeamCollaboration } from "@/components/dashboard/team-collaboration"
 import { ProjectForm } from "@/components/projects/project-form"
 import { ProjectList } from "@/components/projects/project-list"
 import { SiteHeader } from "@/components/site-header"
@@ -23,7 +25,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import type { Project, Task } from "@/types"
 
 type ViewMode = "list" | "create" | "edit"
-type ActiveView = "overview" | "projects" | "tasks"
+type ActiveView = "overview" | "projects" | "tasks" | "team" | "analytics"
 
 async function readJsonResponse<T>(response: Response): Promise<T> {
   const data = await response.json()
@@ -40,7 +42,9 @@ function DashboardContent() {
   const searchParams = useSearchParams()
   const tab = searchParams.get("tab")
   const activeView: ActiveView =
-    tab === "projects" || tab === "tasks" ? tab : "overview"
+    tab === "projects" || tab === "tasks" || tab === "team" || tab === "analytics"
+      ? tab
+      : "overview"
 
   const [projects, setProjects] = useState<Project[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
@@ -249,7 +253,7 @@ function DashboardContent() {
       title: "View analytics",
       description: "Use charts to understand work velocity.",
       icon: BarChart3Icon,
-      action: () => navigateTo("overview"),
+      action: () => navigateTo("analytics"),
       label: "View chart",
     },
   ]
@@ -383,6 +387,10 @@ function DashboardContent() {
                   {activeView === "overview" && renderOverview()}
                   {activeView === "projects" && renderProjects()}
                   {activeView === "tasks" && renderTasks()}
+                  {activeView === "team" && <TeamCollaboration />}
+                  {activeView === "analytics" && (
+                    <AnalyticsDashboard projects={projects} tasks={tasks} />
+                  )}
                 </>
               )}
             </div>

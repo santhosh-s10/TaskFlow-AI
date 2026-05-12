@@ -50,7 +50,7 @@ const data = {
     },
     {
       title: "Team",
-      url: "#",
+      url: "/dashboard?tab=team",
       icon: (
         <UsersIcon
         />
@@ -58,7 +58,7 @@ const data = {
     },
     {
       title: "Analytics",
-      url: "#",
+      url: "/dashboard?tab=analytics",
       icon: (
         <ChartBarIcon
         />
