@@ -198,7 +198,121 @@ export function TaskList({
           </Select>
         </div>
 
-        <div className={cn("transition-opacity", isLoading && "opacity-60")} aria-busy={isLoading}>
+        <div className={cn("grid gap-3 transition-opacity lg:hidden", isLoading && "opacity-60")} aria-busy={isLoading}>
+          {filteredTasks.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-6 text-center text-muted-foreground">
+              <ListChecksIcon className="mx-auto mb-2 size-8 text-primary" />
+              <p className="font-medium text-foreground">
+                {isLoading ? "Loading tasks..." : "No tasks found"}
+              </p>
+              <p className="mt-1 text-sm">
+                {isLoading
+                  ? "Fetching the next set of task rows."
+                  : "Try a different search, clear filters, or create a task for a project."}
+              </p>
+            </div>
+          ) : (
+            filteredTasks.map((task) => (
+              <div
+                key={task.id}
+                className={cn("space-y-4 rounded-lg border p-4", task.status === "completed" && "opacity-70")}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 gap-3">
+                    {onToggleComplete && (
+                      <Checkbox
+                        checked={task.status === "completed"}
+                        aria-label={`Mark ${task.title} complete`}
+                        onCheckedChange={(checked) => onToggleComplete(task.id, checked === true)}
+                        className="mt-1"
+                      />
+                    )}
+                    <div className="min-w-0 space-y-1">
+                      <h3
+                        className={cn(
+                          "break-words font-medium leading-snug",
+                          task.status === "completed" && "line-through",
+                          isOverdue(task) && "text-destructive"
+                        )}
+                      >
+                        {task.title}
+                      </h3>
+                      <p className="line-clamp-3 break-words text-sm text-muted-foreground">
+                        {task.description}
+                      </p>
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon-sm" aria-label="Open task actions">
+                        <MoreHorizontalIcon className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {onView && (
+                        <DropdownMenuItem onClick={() => onView(task)}>
+                          <EyeIcon className="size-4" />
+                          View
+                        </DropdownMenuItem>
+                      )}
+                      {onEdit && (
+                        <DropdownMenuItem onClick={() => onEdit(task)}>
+                          <EditIcon className="size-4" />
+                          Edit
+                        </DropdownMenuItem>
+                      )}
+                      {onDelete && (
+                        <DropdownMenuItem
+                          onClick={() => onDelete(task.id)}
+                          className="text-destructive"
+                        >
+                          <Trash2Icon className="size-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Badge className={statusClasses[task.status]}>
+                    {statusLabels[task.status]}
+                  </Badge>
+                  <Badge className={priorityClasses[task.priority]}>
+                    {priorityLabels[task.priority]}
+                  </Badge>
+                  <Badge variant="outline">{getProjectName(task.projectId)}</Badge>
+                </div>
+
+                {task.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {task.tags.map((tag) => (
+                      <Badge key={tag} variant="outline">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+                  <div className="break-all">Owner: {task.assignedTo || "Unassigned"}</div>
+                  <div
+                    className={cn(
+                      "flex items-center gap-2",
+                      isOverdue(task) && "text-destructive"
+                    )}
+                  >
+                    <CalendarIcon className="size-4" />
+                    {format(new Date(task.dueDate), "MMM dd")}
+                    {isOverdue(task) && <span className="text-xs">Overdue</span>}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className={cn("hidden transition-opacity lg:block", isLoading && "opacity-60")} aria-busy={isLoading}>
           <Table className="table-fixed border-separate border-spacing-0">
             <TableHeader>
               <TableRow>

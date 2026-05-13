@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo, useState } from "react"
 import {
   ActivityIcon,
   MessageSquareIcon,
@@ -21,7 +22,22 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { SectionHeading } from "@/components/dashboard/section-heading"
 
-const members = [
+type TeamMember = {
+  name: string
+  email: string
+  role: string
+  avatar: string
+  status: string
+  workload: string
+}
+
+type TeamComment = {
+  author: string
+  text: string
+  time: string
+}
+
+const initialMembers: TeamMember[] = [
   {
     name: "Santhosh S",
     email: "santhosh@taskflow.ai",
@@ -56,7 +72,7 @@ const members = [
   },
 ]
 
-const comments = [
+const initialComments: TeamComment[] = [
   {
     author: "Maya Chen",
     text: "Project and task tables look ready. I added a note to keep mobile overflow readable.",
@@ -98,6 +114,75 @@ const timeline = [
 ]
 
 export function TeamCollaboration() {
+  const [members, setMembers] = useState(initialMembers)
+  const [comments, setComments] = useState(initialComments)
+  const [memberForm, setMemberForm] = useState({
+    name: "",
+    email: "",
+    role: "",
+  })
+  const [commentForm, setCommentForm] = useState({
+    author: "",
+    text: "",
+  })
+  const [memberError, setMemberError] = useState("")
+  const [commentError, setCommentError] = useState("")
+
+  const memberOptions = useMemo(() => members.map((member) => member.name), [members])
+
+  const addMember = (event: React.FormEvent) => {
+    event.preventDefault()
+    setMemberError("")
+
+    const name = memberForm.name.trim()
+    const email = memberForm.email.trim().toLowerCase()
+    const role = memberForm.role.trim()
+
+    if (!name || !email || !role) {
+      setMemberError("Enter member name, email, and role.")
+      return
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setMemberError("Enter a valid team member email.")
+      return
+    }
+
+    if (members.some((member) => member.email === email)) {
+      setMemberError("This team member is already added.")
+      return
+    }
+
+    setMembers((previous) => [
+      {
+        name,
+        email,
+        role,
+        avatar: `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(name)}`,
+        status: "Invited",
+        workload: "0 tasks",
+      },
+      ...previous,
+    ])
+    setMemberForm({ name: "", email: "", role: "" })
+  }
+
+  const addComment = (event: React.FormEvent) => {
+    event.preventDefault()
+    setCommentError("")
+
+    const author = commentForm.author.trim()
+    const text = commentForm.text.trim()
+
+    if (!author || !text) {
+      setCommentError("Enter a member name and comment.")
+      return
+    }
+
+    setComments((previous) => [{ author, text, time: "Just now" }, ...previous])
+    setCommentForm({ author: "", text: "" })
+  }
+
   return (
     <div className="space-y-6">
       <SectionHeading
@@ -105,7 +190,42 @@ export function TeamCollaboration() {
         description="Mock collaboration workspace with team members, comments, and activity history."
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UsersIcon className="size-4 text-primary" />
+            Add Team Member
+          </CardTitle>
+          <CardDescription>Add mock teammates for collaboration planning.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto]" onSubmit={addMember} noValidate>
+            <Input
+              value={memberForm.name}
+              onChange={(event) => setMemberForm((previous) => ({ ...previous, name: event.target.value }))}
+              placeholder="Member name"
+            />
+            <Input
+              value={memberForm.email}
+              onChange={(event) => setMemberForm((previous) => ({ ...previous, email: event.target.value }))}
+              placeholder="member@example.com"
+              type="email"
+            />
+            <Input
+              value={memberForm.role}
+              onChange={(event) => setMemberForm((previous) => ({ ...previous, role: event.target.value }))}
+              placeholder="Role"
+            />
+            <Button type="submit">
+              <PlusIcon className="size-4" />
+              Add
+            </Button>
+          </form>
+          {memberError && <p className="mt-2 text-sm text-destructive">{memberError}</p>}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {members.map((member) => (
           <Card key={member.email}>
             <CardContent className="flex items-start gap-3 py-4">
@@ -138,14 +258,24 @@ export function TeamCollaboration() {
             <CardDescription>Keep team discussion close to delivery work.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-[220px_1fr_auto]">
-              <Input placeholder="Member name" />
-              <Textarea placeholder="Write a project update..." className="min-h-9" />
-              <Button>
+            <form className="grid gap-3 sm:grid-cols-[220px_1fr_auto]" onSubmit={addComment} noValidate>
+              <Input
+                value={commentForm.author}
+                onChange={(event) => setCommentForm((previous) => ({ ...previous, author: event.target.value }))}
+                placeholder={memberOptions[0] || "Member name"}
+              />
+              <Textarea
+                value={commentForm.text}
+                onChange={(event) => setCommentForm((previous) => ({ ...previous, text: event.target.value }))}
+                placeholder="Write a project update..."
+                className="min-h-9"
+              />
+              <Button type="submit">
                 <PlusIcon className="size-4" />
                 Add
               </Button>
-            </div>
+            </form>
+            {commentError && <p className="text-sm text-destructive">{commentError}</p>}
             <div className="space-y-3">
               {comments.map((comment) => (
                 <div key={`${comment.author}-${comment.time}`} className="rounded-lg border p-3">

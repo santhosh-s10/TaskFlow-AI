@@ -383,6 +383,8 @@ function DashboardContent() {
     const overdueTasks = tasks.filter((task) => {
       return new Date(task.dueDate) < new Date() && task.status !== "completed"
     }).length
+    const productivityPercentage =
+      tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0
 
     return {
       totalProjects: projects.length,
@@ -390,6 +392,7 @@ function DashboardContent() {
       completedTasks,
       pendingTasks,
       overdueTasks,
+      productivityPercentage,
     }
   }, [projects.length, tasks])
 
@@ -818,7 +821,7 @@ function DashboardContent() {
   const renderDashboardLoading = () => (
     <div className="dashboard-enter space-y-6">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, index) => (
+        {Array.from({ length: 6 }).map((_, index) => (
           <Card key={index} className="overflow-hidden">
             <CardHeader className="space-y-3">
               <div className="h-4 w-24 animate-pulse rounded bg-muted" />

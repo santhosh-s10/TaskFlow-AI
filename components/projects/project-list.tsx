@@ -174,7 +174,108 @@ export function ProjectList({
           </Select>
         </div>
 
-        <div className={cn("transition-opacity", isLoading && "opacity-60")} aria-busy={isLoading}>
+        <div className={cn("grid gap-3 transition-opacity lg:hidden", isLoading && "opacity-60")} aria-busy={isLoading}>
+          {filteredProjects.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-6 text-center text-muted-foreground">
+              <FolderKanbanIcon className="mx-auto mb-2 size-8 text-primary" />
+              <p className="font-medium text-foreground">
+                {isLoading ? "Loading projects..." : "No projects found"}
+              </p>
+              <p className="mt-1 text-sm">
+                {isLoading
+                  ? "Fetching the next set of project rows."
+                  : "Adjust the filters or create a new project to start planning work."}
+              </p>
+            </div>
+          ) : (
+            filteredProjects.map((project) => {
+              const projectTasks = getProjectTasks(project.id)
+              const progress = getProjectProgress(project.id)
+
+              return (
+                <div key={project.id} className="space-y-4 rounded-lg border p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-1">
+                      <h3 className="break-words font-medium leading-snug">{project.name}</h3>
+                      <p className="line-clamp-3 break-words text-sm text-muted-foreground">
+                        {project.description}
+                      </p>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon-sm" aria-label="Open project actions">
+                          <MoreHorizontalIcon className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {onView && (
+                          <DropdownMenuItem onClick={() => onView(project)}>
+                            <EyeIcon className="size-4" />
+                            View
+                          </DropdownMenuItem>
+                        )}
+                        {onEdit && (
+                          <DropdownMenuItem onClick={() => onEdit(project)}>
+                            <EditIcon className="size-4" />
+                            Edit
+                          </DropdownMenuItem>
+                        )}
+                        {onDelete && (
+                          <DropdownMenuItem
+                            onClick={() => onDelete(project.id)}
+                            className="text-destructive"
+                          >
+                            <Trash2Icon className="size-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Badge className={statusClasses[project.status]}>
+                      {statusLabels[project.status]}
+                    </Badge>
+                    <Badge className={priorityClasses[project.priority]}>
+                      {priorityLabels[project.priority]}
+                    </Badge>
+                    <Badge variant="outline">
+                      {projectTasks.length} {projectTasks.length === 1 ? "task" : "tasks"}
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Completion</span>
+                      <span className="font-medium">{progress}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted">
+                      <div
+                        className="h-2 rounded-full bg-primary transition-all"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div
+                    className={cn(
+                      "flex items-center gap-2 text-sm",
+                      new Date(project.dueDate) < new Date() &&
+                        project.status !== "completed" &&
+                        "text-destructive"
+                    )}
+                  >
+                    <CalendarDaysIcon className="size-4" />
+                    {format(new Date(project.dueDate), "MMM dd, yyyy")}
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+
+        <div className={cn("hidden transition-opacity lg:block", isLoading && "opacity-60")} aria-busy={isLoading}>
           <Table className="table-fixed border-separate border-spacing-0">
             <TableHeader>
               <TableRow>

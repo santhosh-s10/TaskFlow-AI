@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TaskFlow AI
 
-## Getting Started
+TaskFlow AI is a mini SaaS productivity platform built with Next.js, TypeScript, Tailwind CSS, shadcn-style components, NextAuth, and MongoDB.
 
-First, run the development server:
+## Features
+
+- Email/password and Google authentication
+- Protected dashboard route
+- Project CRUD with status, priority, due date, and paginated project rows
+- Task CRUD with project assignment, assignee email, tags, priority, status, due date, filters, and paginated task rows
+- Dashboard metrics including total projects, total tasks, completed tasks, pending tasks, overdue tasks, and productivity percentage
+- Rule-based AI productivity suggestions
+- Analytics charts with Recharts
+- Mock team collaboration with add member, comments, avatars, and activity timeline
+- Responsive dashboard UI with mobile/tablet card layouts for project and task data
+
+## Tech Stack
+
+- Next.js App Router
+- React and TypeScript
+- Tailwind CSS
+- NextAuth
+- MongoDB with Mongoose
+- Recharts
+- Lucide icons
+
+## Setup
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Create `.env` in the project root:
+
+```bash
+MONGODB_URI=your_mongodb_connection_string
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your_nextauth_secret
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+EMAIL_SERVER_HOST=your_smtp_host
+EMAIL_SERVER_PORT=587
+EMAIL_SERVER_USER=your_smtp_user
+EMAIL_SERVER_PASSWORD=your_smtp_password
+EMAIL_FROM=TaskFlow AI <no-reply@example.com>
+```
+
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Useful Commands
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run lint
+npx tsc --noEmit
+npm run build
+```
 
-## Learn More
+## Notes
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Forgot password works with SMTP when email variables are configured.
+- Without SMTP credentials, reset links are logged by the server for local development.
+- Google login requires valid Google OAuth credentials.

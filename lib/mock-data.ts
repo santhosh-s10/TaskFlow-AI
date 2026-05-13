@@ -121,4 +121,8 @@ export const mockDashboardStats: DashboardStats = {
     const today = new Date();
     return dueDate < today && task.status !== 'completed';
   }).length,
+  productivityPercentage:
+    mockTasks.length > 0
+      ? Math.round((mockTasks.filter(task => task.status === 'completed').length / mockTasks.length) * 100)
+      : 0,
 };

@@ -39,4 +39,5 @@ export interface DashboardStats {
   completedTasks: number;
   pendingTasks: number;
   overdueTasks: number;
+  productivityPercentage: number;
 }
