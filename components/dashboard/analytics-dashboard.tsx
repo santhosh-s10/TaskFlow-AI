@@ -40,6 +40,13 @@ const completionConfig = {
   pending: { label: "Pending", color: "var(--chart-4)" },
 } satisfies ChartConfig
 
+const projectCompletionConfig = {
+  completed: { label: "Completed", color: "hsl(var(--primary))" },
+  inProgress: { label: "In progress", color: "var(--chart-2)" },
+  planning: { label: "Planning", color: "var(--chart-4)" },
+  onHold: { label: "On hold", color: "var(--chart-5)" },
+} satisfies ChartConfig
+
 const trendConfig = {
   productivity: { label: "Productivity", color: "hsl(var(--primary))" },
   completed: { label: "Completed", color: "var(--chart-2)" },
@@ -125,6 +132,12 @@ export function AnalyticsDashboard({ projects, tasks }: AnalyticsDashboardProps)
     { name: "Active", value: activeTasks, key: "active" },
     { name: "Pending", value: pendingTasks, key: "pending" },
   ]
+  const projectCompletionData = [
+    { name: "Completed", value: projects.filter((project) => project.status === "completed").length, key: "completed" },
+    { name: "In progress", value: projects.filter((project) => project.status === "in-progress").length, key: "inProgress" },
+    { name: "Planning", value: projects.filter((project) => project.status === "planning").length, key: "planning" },
+    { name: "On hold", value: projects.filter((project) => project.status === "on-hold").length, key: "onHold" },
+  ]
   const trendData = buildTrendData(tasks)
   const weeklyData = buildWeeklyData(tasks)
 
@@ -148,6 +161,43 @@ export function AnalyticsDashboard({ projects, tasks }: AnalyticsDashboardProps)
       />
 
       <div className="grid gap-6 xl:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Project Completion Chart</CardTitle>
+            <CardDescription>Completed, active, planning, and paused projects.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={projectCompletionConfig} className="h-[280px] w-full">
+              <PieChart>
+                <Pie data={projectCompletionData} dataKey="value" nameKey="name" innerRadius={58} outerRadius={92}>
+                  {projectCompletionData.map((item) => (
+                    <Cell key={item.key} fill={`var(--color-${item.key})`} />
+                  ))}
+                </Pie>
+                <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
+              </PieChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Project Progress</CardTitle>
+            <CardDescription>Completion percentage by project.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={progressConfig} className="h-[280px] w-full">
+              <BarChart data={projectProgressData} layout="vertical" margin={{ left: 12 }}>
+                <CartesianGrid horizontal={false} />
+                <XAxis type="number" domain={[0, 100]} tickLine={false} axisLine={false} />
+                <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={120} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="progress" fill="var(--color-progress)" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Task Completion Chart</CardTitle>
@@ -210,23 +260,6 @@ export function AnalyticsDashboard({ projects, tasks }: AnalyticsDashboardProps)
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Project Progress</CardTitle>
-            <CardDescription>Completion percentage by project.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={progressConfig} className="h-[280px] w-full">
-              <BarChart data={projectProgressData} layout="vertical" margin={{ left: 12 }}>
-                <CartesianGrid horizontal={false} />
-                <XAxis type="number" domain={[0, 100]} tickLine={false} axisLine={false} />
-                <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={120} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="progress" fill="var(--color-progress)" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
       </div>
     </div>
   )

@@ -8,11 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Loader2Icon } from "lucide-react"
-import { format } from "date-fns"
-import { cn } from "@/lib/utils"
+import { FolderKanbanIcon, Loader2Icon } from "lucide-react"
+import { FriendlyDatePicker } from "@/components/friendly-date-picker"
 
 interface ProjectFormProps {
   project?: Project
@@ -81,43 +78,50 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading }: ProjectF
   }
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle>{project ? 'Edit Project' : 'Create New Project'}</CardTitle>
-        <CardDescription>
-          {project ? 'Update project information' : 'Fill in the details to create a new project'}
-        </CardDescription>
+    <Card className="mx-auto w-full max-w-5xl overflow-hidden shadow-sm">
+      <CardHeader className="border-b bg-background">
+        <div className="flex items-start gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-md border bg-background text-primary">
+            <FolderKanbanIcon className="size-5" />
+          </div>
+          <div className="space-y-1">
+            <CardTitle>{project ? 'Edit Project' : 'Create Project'}</CardTitle>
+            <CardDescription>
+              {project ? 'Update scope, priority, status, and delivery date.' : 'Define the project scope, owner-visible priority, and target delivery date.'}
+            </CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="name">Project Name</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
-              placeholder="Enter project name"
-              aria-invalid={Boolean(errors.name)}
-              required
-            />
-            {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
+        <form onSubmit={handleSubmit} noValidate className="grid gap-6 py-6 lg:grid-cols-[1.4fr_0.9fr]">
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="name">Project name</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+                placeholder="Customer portal modernization"
+                aria-invalid={Boolean(errors.name)}
+              />
+              {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                placeholder="Summarize the outcome, constraints, and delivery expectations."
+                rows={8}
+                aria-invalid={Boolean(errors.description)}
+              />
+              {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              placeholder="Describe your project"
-              rows={3}
-              aria-invalid={Boolean(errors.description)}
-              required
-            />
-            {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-5 rounded-md border bg-background p-4">
             <div className="space-y-2">
               <Label>Status</Label>
               <Select
@@ -152,47 +156,30 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading }: ProjectF
                 </SelectContent>
               </Select>
             </div>
-          </div>
+            <div className="space-y-2">
+              <Label>Due date</Label>
+              <FriendlyDatePicker
+                value={formData.dueDate}
+                onChange={(date) => handleInputChange('dueDate', date)}
+                error={errors.dueDate}
+              />
+              {errors.dueDate && <p className="text-sm text-destructive">{errors.dueDate}</p>}
+            </div>
 
-          <div className="space-y-2">
-            <Label>Due Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !formData.dueDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {formData.dueDate ? format(formData.dueDate, "PPP") : "Pick a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={formData.dueDate}
-                  onSelect={(date) => date && handleInputChange('dueDate', date)}
-                />
-              </PopoverContent>
-            </Popover>
-            {errors.dueDate && <p className="text-sm text-destructive">{errors.dueDate}</p>}
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              disabled={isLoading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading && <Loader2Icon className="size-4 animate-spin" />}
-              {isLoading ? 'Saving...' : project ? 'Update Project' : 'Create Project'}
-            </Button>
+            <div className="flex justify-end gap-3 border-t pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onCancel}
+                disabled={isLoading}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading && <Loader2Icon className="size-4 animate-spin" />}
+                {isLoading ? 'Saving...' : project ? 'Update project' : 'Create project'}
+              </Button>
+            </div>
           </div>
         </form>
       </CardContent>

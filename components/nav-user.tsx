@@ -1,13 +1,13 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { signOut } from "next-auth/react"
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,22 +17,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer"
+import { ConfirmationModal } from "@/components/confirmation-modal"
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { EllipsisVerticalIcon, CircleUserRoundIcon, CreditCardIcon, BellIcon, LogOutIcon } from "lucide-react"
+import { EllipsisVerticalIcon, CircleUserRoundIcon, LogOutIcon } from "lucide-react"
 
 export function NavUser({
   user,
@@ -44,6 +36,8 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
+  const router = useRouter()
+  const [menuOpen, setMenuOpen] = useState(false)
   const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false)
   const fallback = user.name
     .split(" ")
@@ -55,11 +49,11 @@ export function NavUser({
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <DropdownMenu>
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="border border-primary/15 bg-primary/8 text-sidebar-foreground shadow-sm hover:bg-primary/12 data-[state=open]:bg-primary/12 data-[state=open]:text-sidebar-accent-foreground"
+              className="border border-border bg-background text-sidebar-foreground shadow-sm hover:bg-accent data-[state=open]:bg-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-9 w-9 rounded-lg border border-primary/25 shadow-sm">
                 <AvatarImage src={user.avatar} alt={user.name} />
@@ -69,7 +63,7 @@ export function NavUser({
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold text-primary">{user.name}</span>
-                <span className="truncate text-xs text-sidebar-foreground/75">
+                <span className="truncate text-xs text-muted-foreground">
                   {user.email}
                 </span>
               </div>
@@ -100,27 +94,23 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <CircleUserRoundIcon
-                />
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault()
+                  setMenuOpen(false)
+                  router.push("/dashboard?tab=settings")
+                }}
+              >
+                <CircleUserRoundIcon />
                 Account
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCardIcon
-                />
-                Billing
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <BellIcon
-                />
-                Notifications
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onSelect={(event) => {
                 event.preventDefault()
-                setConfirmLogoutOpen(true)
+                setMenuOpen(false)
+                window.setTimeout(() => setConfirmLogoutOpen(true), 0)
               }}
             >
               <LogOutIcon
@@ -129,27 +119,14 @@ export function NavUser({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Drawer open={confirmLogoutOpen} onOpenChange={setConfirmLogoutOpen}>
-          <DrawerContent>
-            <DrawerHeader>
-              <DrawerTitle>Log out of TaskFlow AI?</DrawerTitle>
-              <DrawerDescription>
-                You will need to sign in again to access your dashboard and workspace.
-              </DrawerDescription>
-            </DrawerHeader>
-            <DrawerFooter>
-              <Button
-                variant="destructive"
-                onClick={() => signOut({ callbackUrl: "/login" })}
-              >
-                Log out
-              </Button>
-              <DrawerClose asChild>
-                <Button variant="outline">Cancel</Button>
-              </DrawerClose>
-            </DrawerFooter>
-          </DrawerContent>
-        </Drawer>
+        <ConfirmationModal
+          open={confirmLogoutOpen}
+          title="Log out of TaskFlow AI?"
+          description="You will need to sign in again to access your dashboard and workspace."
+          confirmLabel="Log out"
+          onConfirm={() => signOut({ callbackUrl: "/login" })}
+          onCancel={() => setConfirmLogoutOpen(false)}
+        />
       </SidebarMenuItem>
     </SidebarMenu>
   )

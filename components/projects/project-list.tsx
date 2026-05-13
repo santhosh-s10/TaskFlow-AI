@@ -162,14 +162,14 @@ export function ProjectList({
           </Select>
         </div>
 
-        <Table>
+        <Table className="table-fixed border-separate border-spacing-0">
           <TableHeader>
             <TableRow>
-              <TableHead>Project</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Priority</TableHead>
-              <TableHead>Progress</TableHead>
-              <TableHead>Due date</TableHead>
+              <TableHead className="w-[32%] whitespace-normal">Project</TableHead>
+              <TableHead className="w-[13%] whitespace-normal">Status</TableHead>
+              <TableHead className="w-[12%] whitespace-normal">Priority</TableHead>
+              <TableHead className="w-[20%] whitespace-normal">Progress</TableHead>
+              <TableHead className="w-[15%] whitespace-normal">Due date</TableHead>
               <TableHead className="w-[72px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -193,10 +193,10 @@ export function ProjectList({
 
                 return (
                   <TableRow key={project.id}>
-                    <TableCell>
-                      <div className="min-w-52 space-y-1">
-                        <div className="font-medium">{project.name}</div>
-                        <div className="line-clamp-1 text-sm text-muted-foreground">
+                    <TableCell className="whitespace-normal break-words">
+                      <div className="space-y-1">
+                        <div className="font-medium leading-snug">{project.name}</div>
+                        <div className="text-sm leading-snug text-muted-foreground">
                           {project.description}
                         </div>
                         <div className="text-xs text-muted-foreground">
@@ -204,18 +204,18 @@ export function ProjectList({
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-normal">
                       <Badge className={statusClasses[project.status]}>
                         {statusLabels[project.status]}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-normal">
                       <Badge className={priorityClasses[project.priority]}>
                         {priorityLabels[project.priority]}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      <div className="min-w-36 space-y-2">
+                    <TableCell className="whitespace-normal">
+                      <div className="space-y-2">
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-muted-foreground">Completion</span>
                           <span className="font-medium">{progress}%</span>
@@ -228,7 +228,7 @@ export function ProjectList({
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-normal">
                       <div
                         className={cn(
                           "flex items-center gap-2 text-sm",

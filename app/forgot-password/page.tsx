@@ -77,7 +77,7 @@ export default function ForgotPasswordPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} noValidate>
               <FieldGroup>
                 <Field>
                   <FieldLabel htmlFor="email">Email</FieldLabel>
@@ -87,7 +87,6 @@ export default function ForgotPasswordPage() {
                     inputMode="email"
                     autoComplete="email"
                     placeholder="m@example.com"
-                    required
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                   />

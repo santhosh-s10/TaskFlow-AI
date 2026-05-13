@@ -21,6 +21,10 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 
+const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/
+const strongPasswordMessage =
+  "Password must be at least 8 characters and include uppercase, lowercase, number, and special character."
+
 function ResetPasswordContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -44,8 +48,8 @@ function ResetPasswordContent() {
       return
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long.")
+    if (!passwordPattern.test(password)) {
+      setError(strongPasswordMessage)
       setIsLoading(false)
       return
     }
@@ -86,7 +90,7 @@ function ResetPasswordContent() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="password">New password</FieldLabel>
@@ -94,10 +98,12 @@ function ResetPasswordContent() {
                 id="password"
                 type="password"
                 autoComplete="new-password"
-                required
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
               />
+              <FieldDescription>
+                Use 8+ characters with uppercase, lowercase, number, and special character.
+              </FieldDescription>
             </Field>
             <Field>
               <FieldLabel htmlFor="confirmPassword">Confirm password</FieldLabel>
@@ -105,7 +111,6 @@ function ResetPasswordContent() {
                 id="confirmPassword"
                 type="password"
                 autoComplete="new-password"
-                required
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
               />

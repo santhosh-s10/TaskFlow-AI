@@ -186,16 +186,16 @@ export function TaskList({
           </Select>
         </div>
 
-        <Table>
+        <Table className="table-fixed border-separate border-spacing-0">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-10" />
-              <TableHead>Task</TableHead>
-              <TableHead>Project</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Priority</TableHead>
-              <TableHead>Owner</TableHead>
-              <TableHead>Due date</TableHead>
+              <TableHead className="w-10 whitespace-normal" />
+              <TableHead className="w-[28%] whitespace-normal">Task</TableHead>
+              <TableHead className="w-[16%] whitespace-normal">Project</TableHead>
+              <TableHead className="w-[12%] whitespace-normal">Status</TableHead>
+              <TableHead className="w-[12%] whitespace-normal">Priority</TableHead>
+              <TableHead className="w-[16%] whitespace-normal">Owner</TableHead>
+              <TableHead className="w-[12%] whitespace-normal">Due date</TableHead>
               <TableHead className="w-[72px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -224,8 +224,8 @@ export function TaskList({
                       />
                     )}
                   </TableCell>
-                  <TableCell>
-                    <div className="min-w-60 space-y-2">
+                  <TableCell className="whitespace-normal break-words">
+                    <div className="space-y-2">
                       <div
                         className={cn(
                           "font-medium",
@@ -235,7 +235,7 @@ export function TaskList({
                       >
                         {task.title}
                       </div>
-                      <div className="line-clamp-1 text-sm text-muted-foreground">
+                      <div className="text-sm leading-snug text-muted-foreground">
                         {task.description}
                       </div>
                       {task.tags.length > 0 && (
@@ -249,19 +249,19 @@ export function TaskList({
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm">{getProjectName(task.projectId)}</TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-normal break-words text-sm">{getProjectName(task.projectId)}</TableCell>
+                  <TableCell className="whitespace-normal">
                     <Badge className={statusClasses[task.status]}>
                       {statusLabels[task.status]}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-normal">
                     <Badge className={priorityClasses[task.priority]}>
                       {priorityLabels[task.priority]}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-sm">{task.assignedTo || "Unassigned"}</TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-normal break-all text-sm">{task.assignedTo || "Unassigned"}</TableCell>
+                  <TableCell className="whitespace-normal">
                     <div
                       className={cn(
                         "flex items-center gap-2 text-sm",

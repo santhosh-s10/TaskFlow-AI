@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { useTheme } from "next-themes"
 import {
-  AlertTriangleIcon,
   CameraIcon,
   CheckCircle2Icon,
   BarChart3Icon,
@@ -13,7 +12,6 @@ import {
   KeyRoundIcon,
   LaptopIcon,
   FolderPlusIcon,
-  LineChartIcon,
   ListChecksIcon,
   Loader2Icon,
   MoonIcon,
@@ -39,15 +37,7 @@ import { TaskForm } from "@/components/tasks/task-form"
 import { TaskList } from "@/components/tasks/task-list"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer"
+import { ConfirmationModal } from "@/components/confirmation-modal"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
@@ -317,13 +307,6 @@ function DashboardContent() {
       label: "View tasks",
     },
     {
-      title: "Track productivity",
-      description: "Watch completion and pending work trends.",
-      icon: LineChartIcon,
-      action: () => navigateTo("overview"),
-      label: "Open overview",
-    },
-    {
       title: "View analytics",
       description: "Use charts to understand work velocity.",
       icon: BarChart3Icon,
@@ -348,7 +331,7 @@ function DashboardContent() {
         onOpenTasks={() => navigateTo("tasks")}
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         {capabilityCards.map((item) => (
           <Card key={item.title} className="transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -368,12 +351,12 @@ function DashboardContent() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
+        <RecentActivityFeed projects={projects} tasks={tasks} />
         <ProjectList
           projects={projects.slice(0, 5)}
           tasks={tasks}
           onView={() => navigateTo("projects")}
         />
-        <RecentActivityFeed projects={projects} tasks={tasks} />
       </div>
 
       <div className="grid gap-6">
@@ -780,35 +763,23 @@ function DashboardContent() {
           </div>
         </div>
       </SidebarInset>
-      <Drawer open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DrawerContent>
-          <DrawerHeader>
-            <DrawerTitle className="flex items-center gap-2">
-              <AlertTriangleIcon className="size-5 text-destructive" />
-              Confirm delete
-            </DrawerTitle>
-            <DrawerDescription>
-              {deleteTarget?.type === "project" &&
-                `Delete "${deleteTarget.name}"? This will also remove its related tasks from your dashboard.`}
-              {deleteTarget?.type === "task" &&
-                `Delete "${deleteTarget.name}"? This action cannot be undone.`}
-              {deleteTarget?.type === "account" &&
-                `Delete ${deleteTarget.name}? This is a protected action and needs a connected account deletion API.`}
-            </DrawerDescription>
-          </DrawerHeader>
-          <DrawerFooter>
-            <Button variant="destructive" onClick={handleConfirmDelete} disabled={isDeleting}>
-              {isDeleting && <Loader2Icon className="size-4 animate-spin" />}
-              Delete
-            </Button>
-            <DrawerClose asChild>
-              <Button variant="outline" disabled={isDeleting}>
-                Cancel
-              </Button>
-            </DrawerClose>
-          </DrawerFooter>
-        </DrawerContent>
-      </Drawer>
+      <ConfirmationModal
+        open={Boolean(deleteTarget)}
+        title="Confirm delete"
+        description={
+          deleteTarget?.type === "project"
+            ? `Delete "${deleteTarget.name}"? This will also remove its related tasks from your dashboard.`
+            : deleteTarget?.type === "task"
+              ? `Delete "${deleteTarget.name}"? This action cannot be undone.`
+              : deleteTarget?.type === "account"
+                ? `Delete ${deleteTarget.name}? This is a protected action and needs a connected account deletion API.`
+                : ""
+        }
+        confirmLabel="Delete"
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </SidebarProvider>
   )
 }

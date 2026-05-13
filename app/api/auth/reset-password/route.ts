@@ -5,6 +5,10 @@ import { hashPasswordResetToken } from "@/lib/password-reset"
 import User from "@/models/User"
 import VerificationToken from "@/models/VerificationToken"
 
+const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/
+const strongPasswordMessage =
+  "Password must be at least 8 characters and include uppercase, lowercase, number, and special character."
+
 export async function POST(request: NextRequest) {
   try {
     const { email, token, password, confirmPassword } = await request.json()
@@ -18,9 +22,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (typeof password !== "string" || password.length < 6) {
+    if (typeof password !== "string" || !passwordPattern.test(password)) {
       return NextResponse.json(
-        { error: "Password must be at least 6 characters long." },
+        { error: strongPasswordMessage },
         { status: 400 }
       )
     }

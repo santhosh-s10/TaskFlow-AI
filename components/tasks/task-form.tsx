@@ -8,12 +8,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
-import { CalendarIcon, Loader2Icon, X } from "lucide-react"
-import { format } from "date-fns"
-import { cn } from "@/lib/utils"
+import { ClipboardListIcon, Loader2Icon, X } from "lucide-react"
+import { FriendlyDatePicker } from "@/components/friendly-date-picker"
 
 interface TaskFormProps {
   task?: Task
@@ -135,43 +132,80 @@ export function TaskForm({ task, projects, onSubmit, onCancel, isLoading }: Task
   }
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle>{task ? 'Edit Task' : 'Create New Task'}</CardTitle>
-        <CardDescription>
-          {task ? 'Update task information' : 'Fill in the details to create a new task'}
-        </CardDescription>
+    <Card className="mx-auto w-full max-w-5xl overflow-hidden shadow-sm">
+      <CardHeader className="border-b bg-background">
+        <div className="flex items-start gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-md border bg-background text-primary">
+            <ClipboardListIcon className="size-5" />
+          </div>
+          <div className="space-y-1">
+            <CardTitle>{task ? 'Edit Task' : 'Create Task'}</CardTitle>
+            <CardDescription>
+              {task ? 'Update assignment, status, and deadline.' : 'Create a clear task with ownership, project context, and a due date.'}
+            </CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="title">Task Title</Label>
-            <Input
-              id="title"
-              value={formData.title}
-              onChange={(e) => handleInputChange('title', e.target.value)}
-              placeholder="Enter task title"
-              aria-invalid={Boolean(errors.title)}
-              required
-            />
-            {errors.title && <p className="text-sm text-destructive">{errors.title}</p>}
+        <form onSubmit={handleSubmit} noValidate className="grid gap-6 py-6 lg:grid-cols-[1.4fr_0.9fr]">
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="title">Task title</Label>
+              <Input
+                id="title"
+                value={formData.title}
+                onChange={(e) => handleInputChange('title', e.target.value)}
+                placeholder="Prepare onboarding checklist"
+                aria-invalid={Boolean(errors.title)}
+              />
+              {errors.title && <p className="text-sm text-destructive">{errors.title}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                placeholder="Describe the expected outcome and any acceptance criteria."
+                rows={8}
+                aria-invalid={Boolean(errors.description)}
+              />
+              {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tags</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  placeholder="Add a tag"
+                  onKeyDown={handleKeyPress}
+                  className="flex-1"
+                />
+                <Button type="button" onClick={addTag} variant="outline">
+                  Add
+                </Button>
+              </div>
+              {errors.tags && <p className="text-sm text-destructive">{errors.tags}</p>}
+              {formData.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {formData.tags.map((tag, index) => (
+                    <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                      {tag}
+                      <X
+                        className="h-3 w-3 cursor-pointer"
+                        onClick={() => removeTag(tag)}
+                      />
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              placeholder="Describe your task"
-              rows={3}
-              aria-invalid={Boolean(errors.description)}
-              required
-            />
-            {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-5 rounded-md border bg-background p-4">
             <div className="space-y-2">
               <Label>Project</Label>
               <Select
@@ -208,9 +242,6 @@ export function TaskForm({ task, projects, onSubmit, onCancel, isLoading }: Task
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Priority</Label>
               <Select
@@ -237,81 +268,34 @@ export function TaskForm({ task, projects, onSubmit, onCancel, isLoading }: Task
                 placeholder="email@example.com"
                 type="email"
                 aria-invalid={Boolean(errors.assignedTo)}
-                required
               />
               {errors.assignedTo && <p className="text-sm text-destructive">{errors.assignedTo}</p>}
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label>Tags</Label>
-            <div className="flex gap-2">
-              <Input
-                value={newTag}
-                onChange={(e) => setNewTag(e.target.value)}
-                placeholder="Add a tag"
-                onKeyPress={handleKeyPress}
-                className="flex-1"
+            <div className="space-y-2">
+              <Label>Due date</Label>
+              <FriendlyDatePicker
+                value={formData.dueDate}
+                onChange={(date) => handleInputChange('dueDate', date)}
+                error={errors.dueDate}
               />
-              <Button type="button" onClick={addTag} variant="outline">
-                Add
+              {errors.dueDate && <p className="text-sm text-destructive">{errors.dueDate}</p>}
+            </div>
+
+            <div className="flex justify-end gap-3 border-t pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onCancel}
+                disabled={isLoading}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading && <Loader2Icon className="size-4 animate-spin" />}
+                {isLoading ? 'Saving...' : task ? 'Update task' : 'Create task'}
               </Button>
             </div>
-            {errors.tags && <p className="text-sm text-destructive">{errors.tags}</p>}
-            {formData.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {formData.tags.map((tag, index) => (
-                  <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                    {tag}
-                    <X
-                      className="h-3 w-3 cursor-pointer"
-                      onClick={() => removeTag(tag)}
-                    />
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label>Due Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !formData.dueDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {formData.dueDate ? format(formData.dueDate, "PPP") : "Pick a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={formData.dueDate}
-                  onSelect={(date) => date && handleInputChange('dueDate', date)}
-                />
-              </PopoverContent>
-            </Popover>
-            {errors.dueDate && <p className="text-sm text-destructive">{errors.dueDate}</p>}
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              disabled={isLoading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading && <Loader2Icon className="size-4 animate-spin" />}
-              {isLoading ? 'Saving...' : task ? 'Update Task' : 'Create Task'}
-            </Button>
           </div>
         </form>
       </CardContent>

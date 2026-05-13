@@ -13,7 +13,6 @@ import {
 } from "lucide-react"
 
 import type { Project, Task } from "@/types"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
@@ -187,7 +186,6 @@ export function ProductivitySuggestions({
             Smart productivity signals based on your current projects and tasks.
           </p>
         </div>
-        <Badge variant="outline">Rule-based</Badge>
       </CardHeader>
       <CardContent>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
