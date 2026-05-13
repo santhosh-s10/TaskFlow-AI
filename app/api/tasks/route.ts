@@ -1,13 +1,25 @@
 import { getServerSession } from "next-auth"
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 
 import { authOptions } from "@/lib/auth"
-import { getUserTasks, userOwnsProject } from "@/lib/dashboard-data"
+import { userOwnsProject } from "@/lib/dashboard-data"
 import connectToDatabase from "@/lib/mongodb"
 import { serializeTask } from "@/lib/serializers"
 import Task from "@/models/Task"
 
-export async function GET() {
+const DEFAULT_PAGE_SIZE = 10
+const MAX_PAGE_SIZE = 50
+
+function getPaginationParams(request: NextRequest) {
+  const pageParam = Number(request.nextUrl.searchParams.get("page") ?? "1")
+  const limitParam = Number(request.nextUrl.searchParams.get("limit") ?? String(DEFAULT_PAGE_SIZE))
+  const limit = Math.min(Math.max(Number.isFinite(limitParam) ? Math.floor(limitParam) : DEFAULT_PAGE_SIZE, 1), MAX_PAGE_SIZE)
+  const page = Math.max(Number.isFinite(pageParam) ? Math.floor(pageParam) : 1, 1)
+
+  return { page, limit }
+}
+
+export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -15,8 +27,29 @@ export async function GET() {
 
   await connectToDatabase()
 
-  const tasks = await getUserTasks(session.user.id)
-  return NextResponse.json({ tasks })
+  if (request.nextUrl.searchParams.get("all") === "true") {
+    const tasks = await Task.find({ userId: session.user.id }).sort({ createdAt: -1, _id: -1 })
+    return NextResponse.json({ tasks: tasks.map(serializeTask) })
+  }
+
+  const { page, limit } = getPaginationParams(request)
+  const total = await Task.countDocuments({ userId: session.user.id })
+  const totalPages = Math.max(Math.ceil(total / limit), 1)
+  const currentPage = Math.min(page, totalPages)
+  const tasks = await Task.find({ userId: session.user.id })
+    .sort({ createdAt: -1, _id: -1 })
+    .skip((currentPage - 1) * limit)
+    .limit(limit)
+
+  return NextResponse.json({
+    tasks: tasks.map(serializeTask),
+    pagination: {
+      page: currentPage,
+      pageSize: limit,
+      totalItems: total,
+      totalPages,
+    },
+  })
 }
 
 export async function POST(request: Request) {

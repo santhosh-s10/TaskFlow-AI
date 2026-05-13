@@ -50,6 +50,14 @@ type DeleteTarget =
   | { type: "project"; id: string; name: string }
   | { type: "task"; id: string; name: string }
   | { type: "account"; id: "account"; name: string }
+type PaginationMeta = {
+  page: number
+  pageSize: number
+  totalItems: number
+  totalPages: number
+}
+
+const LIST_PAGE_SIZE = 10
 
 async function readJsonResponse<T>(response: Response): Promise<T> {
   const data = await response.json()
@@ -59,6 +67,11 @@ async function readJsonResponse<T>(response: Response): Promise<T> {
   }
 
   return data
+}
+
+function readPageParam(value: string | null) {
+  const page = Number(value)
+  return Number.isFinite(page) && page > 0 ? Math.floor(page) : 1
 }
 
 function DashboardContent() {
@@ -76,10 +89,28 @@ function DashboardContent() {
     tab === "settings"
       ? tab
       : "overview"
+  const projectPage = readPageParam(searchParams.get("projectPage"))
+  const taskPage = readPageParam(searchParams.get("taskPage"))
 
   const [projects, setProjects] = useState<Project[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
+  const [projectRows, setProjectRows] = useState<Project[]>([])
+  const [taskRows, setTaskRows] = useState<Task[]>([])
+  const [projectPagination, setProjectPagination] = useState<PaginationMeta>({
+    page: 1,
+    pageSize: LIST_PAGE_SIZE,
+    totalItems: 0,
+    totalPages: 1,
+  })
+  const [taskPagination, setTaskPagination] = useState<PaginationMeta>({
+    page: 1,
+    pageSize: LIST_PAGE_SIZE,
+    totalItems: 0,
+    totalPages: 1,
+  })
   const [isLoading, setIsLoading] = useState(true)
+  const [isProjectTableLoading, setIsProjectTableLoading] = useState(false)
+  const [isTaskTableLoading, setIsTaskTableLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState("")
   const [projectViewMode, setProjectViewMode] = useState<ViewMode>("list")
@@ -102,17 +133,17 @@ function DashboardContent() {
 
     try {
       const [projectsResponse, tasksResponse] = await Promise.all([
-        fetch("/api/projects", { cache: "no-store" }),
-        fetch("/api/tasks", { cache: "no-store" }),
+        fetch("/api/projects?all=true", { cache: "no-store" }),
+        fetch("/api/tasks?all=true", { cache: "no-store" }),
       ])
 
-      const [{ projects }, { tasks }] = await Promise.all([
+      const [projectData, taskData] = await Promise.all([
         readJsonResponse<{ projects: Project[] }>(projectsResponse),
         readJsonResponse<{ tasks: Task[] }>(tasksResponse),
       ])
 
-      setProjects(projects)
-      setTasks(tasks)
+      setProjects(projectData.projects)
+      setTasks(taskData.tasks)
     } catch (error) {
       setError(error instanceof Error ? error.message : "Unable to load dashboard data")
     } finally {
@@ -120,10 +151,58 @@ function DashboardContent() {
     }
   }, [])
 
+  const loadProjectRows = useCallback(async () => {
+    setIsProjectTableLoading(true)
+    setError("")
+
+    try {
+      const response = await fetch(`/api/projects?page=${projectPage}&limit=${LIST_PAGE_SIZE}`, {
+        cache: "no-store",
+      })
+      const data = await readJsonResponse<{ projects: Project[]; pagination: PaginationMeta }>(response)
+
+      setProjectRows(data.projects)
+      setProjectPagination(data.pagination)
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unable to load project table data")
+    } finally {
+      setIsProjectTableLoading(false)
+    }
+  }, [projectPage])
+
+  const loadTaskRows = useCallback(async () => {
+    setIsTaskTableLoading(true)
+    setError("")
+
+    try {
+      const response = await fetch(`/api/tasks?page=${taskPage}&limit=${LIST_PAGE_SIZE}`, {
+        cache: "no-store",
+      })
+      const data = await readJsonResponse<{ tasks: Task[]; pagination: PaginationMeta }>(response)
+
+      setTaskRows(data.tasks)
+      setTaskPagination(data.pagination)
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unable to load task table data")
+    } finally {
+      setIsTaskTableLoading(false)
+    }
+  }, [taskPage])
+
   useEffect(() => {
     const timeout = window.setTimeout(loadDashboardData, 0)
     return () => window.clearTimeout(timeout)
   }, [loadDashboardData])
+
+  useEffect(() => {
+    const timeout = window.setTimeout(loadProjectRows, 0)
+    return () => window.clearTimeout(timeout)
+  }, [loadProjectRows])
+
+  useEffect(() => {
+    const timeout = window.setTimeout(loadTaskRows, 0)
+    return () => window.clearTimeout(timeout)
+  }, [loadTaskRows])
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -138,6 +217,14 @@ function DashboardContent() {
 
   const navigateTo = (view: ActiveView) => {
     router.push(view === "overview" ? "/dashboard" : `/dashboard?tab=${view}`)
+  }
+
+  const navigateToPage = (view: "projects" | "tasks", page: number) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("tab", view)
+    params.delete("mode")
+    params.set(view === "projects" ? "projectPage" : "taskPage", String(page))
+    router.push(`/dashboard?${params.toString()}`)
   }
 
   const handleProjectSubmit = async (projectData: Partial<Project>) => {
@@ -159,6 +246,11 @@ function DashboardContent() {
         editingProject
           ? previousProjects.map((item) => (item.id === project.id ? project : item))
           : [project, ...previousProjects]
+      )
+      setProjectRows((previousProjects) =>
+        editingProject
+          ? previousProjects.map((item) => (item.id === project.id ? project : item))
+          : [project, ...previousProjects].slice(0, LIST_PAGE_SIZE)
       )
       setProjectViewMode("list")
       setEditingProject(undefined)
@@ -187,6 +279,11 @@ function DashboardContent() {
           ? previousTasks.map((item) => (item.id === task.id ? task : item))
           : [task, ...previousTasks]
       )
+      setTaskRows((previousTasks) =>
+        editingTask
+          ? previousTasks.map((item) => (item.id === task.id ? task : item))
+          : [task, ...previousTasks].slice(0, LIST_PAGE_SIZE)
+      )
       setTaskViewMode("list")
       setEditingTask(undefined)
       router.replace("/dashboard?tab=tasks")
@@ -206,7 +303,11 @@ function DashboardContent() {
       setProjects((previousProjects) =>
         previousProjects.filter((project) => project.id !== projectId)
       )
+      setProjectRows((previousProjects) =>
+        previousProjects.filter((project) => project.id !== projectId)
+      )
       setTasks((previousTasks) => previousTasks.filter((task) => task.projectId !== projectId))
+      setTaskRows((previousTasks) => previousTasks.filter((task) => task.projectId !== projectId))
     } catch (error) {
       setError(error instanceof Error ? error.message : "Unable to delete project")
     }
@@ -219,6 +320,7 @@ function DashboardContent() {
       const response = await fetch(`/api/tasks/${taskId}`, { method: "DELETE" })
       await readJsonResponse<{ success: boolean }>(response)
       setTasks((previousTasks) => previousTasks.filter((task) => task.id !== taskId))
+      setTaskRows((previousTasks) => previousTasks.filter((task) => task.id !== taskId))
     } catch (error) {
       setError(error instanceof Error ? error.message : "Unable to delete task")
     }
@@ -247,7 +349,7 @@ function DashboardContent() {
   }
 
   const handleToggleTaskComplete = async (taskId: string, completed: boolean) => {
-    const task = tasks.find((item) => item.id === taskId)
+    const task = taskRows.find((item) => item.id === taskId)
     if (!task) {
       return
     }
@@ -265,6 +367,9 @@ function DashboardContent() {
       })
       const { task: updatedTask } = await readJsonResponse<{ task: Task }>(response)
       setTasks((previousTasks) =>
+        previousTasks.map((item) => (item.id === updatedTask.id ? updatedTask : item))
+      )
+      setTaskRows((previousTasks) =>
         previousTasks.map((item) => (item.id === updatedTask.id ? updatedTask : item))
       )
     } catch (error) {
@@ -384,14 +489,19 @@ function DashboardContent() {
         />
         <ProjectSectionCharts projects={projects} tasks={tasks} />
         <ProjectList
-          projects={projects}
+          projects={projectRows}
           tasks={tasks}
+          isLoading={isProjectTableLoading}
+          pagination={{
+            ...projectPagination,
+            onPageChange: (page) => navigateToPage("projects", page),
+          }}
           onEdit={(project) => {
             setEditingProject(project)
             setProjectViewMode("edit")
           }}
           onDelete={(projectId) => {
-            const project = projects.find((item) => item.id === projectId)
+            const project = projectRows.find((item) => item.id === projectId)
             setDeleteTarget({
               type: "project",
               id: projectId,
@@ -431,14 +541,19 @@ function DashboardContent() {
         />
         <TaskSectionCharts tasks={tasks} />
         <TaskList
-          tasks={tasks}
+          tasks={taskRows}
           projects={projects}
+          isLoading={isTaskTableLoading}
+          pagination={{
+            ...taskPagination,
+            onPageChange: (page) => navigateToPage("tasks", page),
+          }}
           onEdit={(task) => {
             setEditingTask(task)
             setTaskViewMode("edit")
           }}
           onDelete={(taskId) => {
-            const task = tasks.find((item) => item.id === taskId)
+            const task = taskRows.find((item) => item.id === taskId)
             setDeleteTarget({
               type: "task",
               id: taskId,

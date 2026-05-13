@@ -4,6 +4,8 @@ import { useMemo, useState } from "react"
 import { format } from "date-fns"
 import {
   CalendarIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   EditIcon,
   EyeIcon,
   ListChecksIcon,
@@ -47,6 +49,14 @@ import { cn } from "@/lib/utils"
 interface TaskListProps {
   tasks: Task[]
   projects?: Project[]
+  pagination?: {
+    page: number
+    pageSize: number
+    totalItems: number
+    totalPages: number
+    onPageChange: (page: number) => void
+  }
+  isLoading?: boolean
   onEdit?: (task: Task) => void
   onDelete?: (taskId: string) => void
   onView?: (task: Task) => void
@@ -80,6 +90,8 @@ const priorityClasses: Record<Task["priority"], string> = {
 export function TaskList({
   tasks,
   projects = [],
+  pagination,
+  isLoading = false,
   onEdit,
   onDelete,
   onView,
@@ -186,35 +198,40 @@ export function TaskList({
           </Select>
         </div>
 
-        <Table className="table-fixed border-separate border-spacing-0">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-10 whitespace-normal" />
-              <TableHead className="w-[28%] whitespace-normal">Task</TableHead>
-              <TableHead className="w-[16%] whitespace-normal">Project</TableHead>
-              <TableHead className="w-[12%] whitespace-normal">Status</TableHead>
-              <TableHead className="w-[12%] whitespace-normal">Priority</TableHead>
-              <TableHead className="w-[16%] whitespace-normal">Owner</TableHead>
-              <TableHead className="w-[12%] whitespace-normal">Due date</TableHead>
-              <TableHead className="w-[72px] text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredTasks.length === 0 ? (
+        <div className={cn("transition-opacity", isLoading && "opacity-60")} aria-busy={isLoading}>
+          <Table className="table-fixed border-separate border-spacing-0">
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={8} className="h-32 text-center">
-                  <div className="mx-auto flex max-w-sm flex-col items-center gap-2 text-muted-foreground">
-                    <ListChecksIcon className="size-8 text-primary" />
-                    <p className="font-medium text-foreground">No tasks found</p>
-                    <p className="text-sm">
-                      Try a different search, clear filters, or create a task for a project.
-                    </p>
-                  </div>
-                </TableCell>
+                <TableHead className="w-10 whitespace-normal" />
+                <TableHead className="w-[28%] whitespace-normal">Task</TableHead>
+                <TableHead className="w-[16%] whitespace-normal">Project</TableHead>
+                <TableHead className="w-[12%] whitespace-normal">Status</TableHead>
+                <TableHead className="w-[12%] whitespace-normal">Priority</TableHead>
+                <TableHead className="w-[16%] whitespace-normal">Owner</TableHead>
+                <TableHead className="w-[12%] whitespace-normal">Due date</TableHead>
+                <TableHead className="w-[72px] text-right">Actions</TableHead>
               </TableRow>
-            ) : (
-              filteredTasks.map((task) => (
-                <TableRow key={task.id} className={cn(task.status === "completed" && "opacity-65")}>
+            </TableHeader>
+            <TableBody>
+              {filteredTasks.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="h-32 text-center">
+                    <div className="mx-auto flex max-w-sm flex-col items-center gap-2 text-muted-foreground">
+                      <ListChecksIcon className="size-8 text-primary" />
+                      <p className="font-medium text-foreground">
+                        {isLoading ? "Loading tasks..." : "No tasks found"}
+                      </p>
+                      <p className="text-sm">
+                        {isLoading
+                          ? "Fetching the next set of task rows."
+                          : "Try a different search, clear filters, or create a task for a project."}
+                      </p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredTasks.map((task) => (
+                  <TableRow key={task.id} className={cn(task.status === "completed" && "opacity-65")}>
                   <TableCell>
                     {onToggleComplete && (
                       <Checkbox
@@ -305,11 +322,44 @@ export function TaskList({
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        {pagination && (
+          <div className="flex flex-col gap-3 border-t pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              Showing {filteredTasks.length} of {pagination.totalItems} tasks
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isLoading || pagination.page <= 1}
+                onClick={() => pagination.onPageChange(pagination.page - 1)}
+              >
+                <ChevronLeftIcon className="size-4" />
+                Previous
+              </Button>
+              <span className="min-w-24 text-center">
+                Page {pagination.page} of {pagination.totalPages}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isLoading || pagination.page >= pagination.totalPages}
+                onClick={() => pagination.onPageChange(pagination.page + 1)}
+              >
+                Next
+                <ChevronRightIcon className="size-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

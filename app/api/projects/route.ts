@@ -1,13 +1,24 @@
 import { getServerSession } from "next-auth"
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 
 import { authOptions } from "@/lib/auth"
-import { getUserProjects } from "@/lib/dashboard-data"
 import connectToDatabase from "@/lib/mongodb"
 import { serializeProject } from "@/lib/serializers"
 import Project from "@/models/Project"
 
-export async function GET() {
+const DEFAULT_PAGE_SIZE = 10
+const MAX_PAGE_SIZE = 50
+
+function getPaginationParams(request: NextRequest) {
+  const pageParam = Number(request.nextUrl.searchParams.get("page") ?? "1")
+  const limitParam = Number(request.nextUrl.searchParams.get("limit") ?? String(DEFAULT_PAGE_SIZE))
+  const limit = Math.min(Math.max(Number.isFinite(limitParam) ? Math.floor(limitParam) : DEFAULT_PAGE_SIZE, 1), MAX_PAGE_SIZE)
+  const page = Math.max(Number.isFinite(pageParam) ? Math.floor(pageParam) : 1, 1)
+
+  return { page, limit }
+}
+
+export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -15,8 +26,29 @@ export async function GET() {
 
   await connectToDatabase()
 
-  const projects = await getUserProjects(session.user.id)
-  return NextResponse.json({ projects })
+  if (request.nextUrl.searchParams.get("all") === "true") {
+    const projects = await Project.find({ userId: session.user.id }).sort({ createdAt: -1, _id: -1 })
+    return NextResponse.json({ projects: projects.map(serializeProject) })
+  }
+
+  const { page, limit } = getPaginationParams(request)
+  const total = await Project.countDocuments({ userId: session.user.id })
+  const totalPages = Math.max(Math.ceil(total / limit), 1)
+  const currentPage = Math.min(page, totalPages)
+  const projects = await Project.find({ userId: session.user.id })
+    .sort({ createdAt: -1, _id: -1 })
+    .skip((currentPage - 1) * limit)
+    .limit(limit)
+
+  return NextResponse.json({
+    projects: projects.map(serializeProject),
+    pagination: {
+      page: currentPage,
+      pageSize: limit,
+      totalItems: total,
+      totalPages,
+    },
+  })
 }
 
 export async function POST(request: Request) {

@@ -4,6 +4,8 @@ import { useMemo, useState } from "react"
 import { format } from "date-fns"
 import {
   CalendarDaysIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   EditIcon,
   EyeIcon,
   FolderKanbanIcon,
@@ -46,6 +48,14 @@ import { cn } from "@/lib/utils"
 interface ProjectListProps {
   projects: Project[]
   tasks?: Task[]
+  pagination?: {
+    page: number
+    pageSize: number
+    totalItems: number
+    totalPages: number
+    onPageChange: (page: number) => void
+  }
+  isLoading?: boolean
   onEdit?: (project: Project) => void
   onDelete?: (projectId: string) => void
   onView?: (project: Project) => void
@@ -80,6 +90,8 @@ const priorityClasses: Record<Project["priority"], string> = {
 export function ProjectList({
   projects,
   tasks = [],
+  pagination,
+  isLoading = false,
   onEdit,
   onDelete,
   onView,
@@ -162,37 +174,42 @@ export function ProjectList({
           </Select>
         </div>
 
-        <Table className="table-fixed border-separate border-spacing-0">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[32%] whitespace-normal">Project</TableHead>
-              <TableHead className="w-[13%] whitespace-normal">Status</TableHead>
-              <TableHead className="w-[12%] whitespace-normal">Priority</TableHead>
-              <TableHead className="w-[20%] whitespace-normal">Progress</TableHead>
-              <TableHead className="w-[15%] whitespace-normal">Due date</TableHead>
-              <TableHead className="w-[72px] text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredProjects.length === 0 ? (
+        <div className={cn("transition-opacity", isLoading && "opacity-60")} aria-busy={isLoading}>
+          <Table className="table-fixed border-separate border-spacing-0">
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center">
-                  <div className="mx-auto flex max-w-sm flex-col items-center gap-2 text-muted-foreground">
-                    <FolderKanbanIcon className="size-8 text-primary" />
-                    <p className="font-medium text-foreground">No projects found</p>
-                    <p className="text-sm">
-                      Adjust the filters or create a new project to start planning work.
-                    </p>
-                  </div>
-                </TableCell>
+                <TableHead className="w-[32%] whitespace-normal">Project</TableHead>
+                <TableHead className="w-[13%] whitespace-normal">Status</TableHead>
+                <TableHead className="w-[12%] whitespace-normal">Priority</TableHead>
+                <TableHead className="w-[20%] whitespace-normal">Progress</TableHead>
+                <TableHead className="w-[15%] whitespace-normal">Due date</TableHead>
+                <TableHead className="w-[72px] text-right">Actions</TableHead>
               </TableRow>
-            ) : (
-              filteredProjects.map((project) => {
-                const projectTasks = getProjectTasks(project.id)
-                const progress = getProjectProgress(project.id)
+            </TableHeader>
+            <TableBody>
+              {filteredProjects.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-32 text-center">
+                    <div className="mx-auto flex max-w-sm flex-col items-center gap-2 text-muted-foreground">
+                      <FolderKanbanIcon className="size-8 text-primary" />
+                      <p className="font-medium text-foreground">
+                        {isLoading ? "Loading projects..." : "No projects found"}
+                      </p>
+                      <p className="text-sm">
+                        {isLoading
+                          ? "Fetching the next set of project rows."
+                          : "Adjust the filters or create a new project to start planning work."}
+                      </p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredProjects.map((project) => {
+                  const projectTasks = getProjectTasks(project.id)
+                  const progress = getProjectProgress(project.id)
 
-                return (
-                  <TableRow key={project.id}>
+                  return (
+                    <TableRow key={project.id}>
                     <TableCell className="whitespace-normal break-words">
                       <div className="space-y-1">
                         <div className="font-medium leading-snug">{project.name}</div>
@@ -273,12 +290,45 @@ export function ProjectList({
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
-                  </TableRow>
-                )
-              })
-            )}
-          </TableBody>
-        </Table>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        {pagination && (
+          <div className="flex flex-col gap-3 border-t pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              Showing {filteredProjects.length} of {pagination.totalItems} projects
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isLoading || pagination.page <= 1}
+                onClick={() => pagination.onPageChange(pagination.page - 1)}
+              >
+                <ChevronLeftIcon className="size-4" />
+                Previous
+              </Button>
+              <span className="min-w-24 text-center">
+                Page {pagination.page} of {pagination.totalPages}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isLoading || pagination.page >= pagination.totalPages}
+                onClick={() => pagination.onPageChange(pagination.page + 1)}
+              >
+                Next
+                <ChevronRightIcon className="size-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
