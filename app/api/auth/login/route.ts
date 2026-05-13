@@ -5,9 +5,10 @@ import User from '@/models/User'
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json()
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : ''
 
     // Validate input
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       return NextResponse.json(
         { error: 'Email and password are required' },
         { status: 400 }
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
     await connectToDatabase()
 
     // Find user by email
-    const user = await User.findOne({ email })
+    const user = await User.findOne({ email: normalizedEmail })
     if (!user) {
       return NextResponse.json(
         { error: 'Invalid email or password' },

@@ -39,7 +39,7 @@ const userSchema = new mongoose.Schema<IUser, UserModel, UserMethods>({
     type: String,
     required: function(this: UserDocument) {
       // Password is required only for non-OAuth users
-      return !this.emailVerified || !this.accounts || this.accounts.length === 0
+      return !this.emailVerified && (!this.accounts || this.accounts.length === 0)
     },
     minlength: [6, 'Password must be at least 6 characters long']
   },

@@ -40,6 +40,26 @@ export async function POST(request: NextRequest) {
 
     const existingUser = await User.findOne({ email: normalizedEmail })
     if (existingUser) {
+      if (!existingUser.password) {
+        existingUser.name = trimmedName
+        existingUser.password = password
+        existingUser.updatedAt = new Date()
+        await existingUser.save()
+
+        return NextResponse.json(
+          {
+            message: 'Password added to existing account',
+            user: {
+              id: existingUser._id,
+              name: existingUser.name,
+              email: existingUser.email,
+              createdAt: existingUser.createdAt
+            }
+          },
+          { status: 200 }
+        )
+      }
+
       return NextResponse.json(
         { error: 'An account with this email already exists. Try logging in instead.' },
         { status: 409 }

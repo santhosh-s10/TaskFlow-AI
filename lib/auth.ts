@@ -5,6 +5,57 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import connectToDatabase from '@/lib/mongodb'
 import User from '@/models/User'
 
+async function findOrCreateUserByEmail({
+  email,
+  name,
+  image,
+  emailVerified,
+}: {
+  email: string
+  name?: string | null
+  image?: string | null
+  emailVerified?: Date | null
+}) {
+  const normalizedEmail = email.trim().toLowerCase()
+
+  await connectToDatabase()
+
+  const existingUser = await User.findOne({ email: normalizedEmail })
+
+  if (existingUser) {
+    let didChange = false
+
+    if (name && existingUser.name !== name) {
+      existingUser.name = name
+      didChange = true
+    }
+
+    if (image && existingUser.image !== image) {
+      existingUser.image = image
+      didChange = true
+    }
+
+    if (emailVerified && !existingUser.emailVerified) {
+      existingUser.emailVerified = emailVerified
+      didChange = true
+    }
+
+    if (didChange) {
+      await existingUser.save()
+    }
+
+    return existingUser
+  }
+
+  return User.create({
+    name: name?.trim() || normalizedEmail.split('@')[0] || 'TaskFlow User',
+    email: normalizedEmail,
+    image: image ?? null,
+    emailVerified: emailVerified ?? new Date(),
+    accounts: [],
+  })
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
@@ -50,10 +101,41 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt' as const,
   },
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id ?? token.sub
+    async signIn({ user, account }) {
+      if (account?.provider !== 'google') {
+        return true
       }
+
+      if (!user.email) {
+        return false
+      }
+
+      await findOrCreateUserByEmail({
+        email: user.email,
+        name: user.name,
+        image: user.image,
+        emailVerified: new Date(),
+      })
+
+      return true
+    },
+    async jwt({ token, user }) {
+      const email = user?.email ?? token.email
+
+      if (email) {
+        const databaseUser = await findOrCreateUserByEmail({
+          email,
+          name: user?.name ?? token.name,
+          image: user?.image ?? token.picture,
+          emailVerified: user?.email ? new Date() : null,
+        })
+
+        token.id = databaseUser._id.toString()
+        token.name = databaseUser.name
+        token.email = databaseUser.email
+        token.picture = databaseUser.image ?? undefined
+      }
+
       return token
     },
     async session({ session, token }) {

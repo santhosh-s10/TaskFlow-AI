@@ -8,7 +8,6 @@ import {
   EyeIcon,
   FolderKanbanIcon,
   MoreHorizontalIcon,
-  PlusIcon,
   SearchIcon,
   Trash2Icon,
 } from "lucide-react"
@@ -19,9 +18,6 @@ import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
 import {
   DropdownMenu,
@@ -53,7 +49,6 @@ interface ProjectListProps {
   onEdit?: (project: Project) => void
   onDelete?: (projectId: string) => void
   onView?: (project: Project) => void
-  onCreate?: () => void
 }
 
 const statusLabels: Record<Project["status"], string> = {
@@ -88,7 +83,6 @@ export function ProjectList({
   onEdit,
   onDelete,
   onView,
-  onCreate,
 }: ProjectListProps) {
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<Project["status"] | "all">("all")
@@ -126,21 +120,7 @@ export function ProjectList({
 
   return (
     <Card>
-      <CardHeader className="gap-4 md:flex-row md:items-start md:justify-between">
-        <div className="space-y-1">
-          <CardTitle>Project Management</CardTitle>
-          <CardDescription>
-            Create, prioritize, and track project delivery across your workspace.
-          </CardDescription>
-        </div>
-        {onCreate && (
-          <Button onClick={onCreate}>
-            <PlusIcon className="size-4" />
-            New project
-          </Button>
-        )}
-      </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-6">
         <div className="grid gap-3 md:grid-cols-[1fr_180px_180px]">
           <div className="relative">
             <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

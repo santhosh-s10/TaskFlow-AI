@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { SectionHeading } from "@/components/dashboard/section-heading"
 
 const members = [
   {
@@ -99,12 +100,10 @@ const timeline = [
 export function TeamCollaboration() {
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold">Team Collaboration</h2>
-        <p className="text-sm text-muted-foreground">
-          Mock collaboration workspace with team members, comments, and activity history.
-        </p>
-      </div>
+      <SectionHeading
+        title="Team Collaboration"
+        description="Mock collaboration workspace with team members, comments, and activity history."
+      />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {members.map((member) => (

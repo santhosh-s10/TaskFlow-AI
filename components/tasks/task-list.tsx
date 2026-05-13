@@ -8,7 +8,6 @@ import {
   EyeIcon,
   ListChecksIcon,
   MoreHorizontalIcon,
-  PlusIcon,
   SearchIcon,
   Trash2Icon,
 } from "lucide-react"
@@ -19,9 +18,6 @@ import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -54,7 +50,6 @@ interface TaskListProps {
   onEdit?: (task: Task) => void
   onDelete?: (taskId: string) => void
   onView?: (task: Task) => void
-  onCreate?: () => void
   onToggleComplete?: (taskId: string, completed: boolean) => void
 }
 
@@ -88,7 +83,6 @@ export function TaskList({
   onEdit,
   onDelete,
   onView,
-  onCreate,
   onToggleComplete,
 }: TaskListProps) {
   const [query, setQuery] = useState("")
@@ -132,27 +126,13 @@ export function TaskList({
 
   return (
     <Card>
-      <CardHeader className="gap-4 md:flex-row md:items-start md:justify-between">
-        <div className="space-y-1">
-          <CardTitle>Task Management</CardTitle>
-          <CardDescription>
-            Search, filter, assign, prioritize, and complete tasks by project.
-          </CardDescription>
-          <div className="flex flex-wrap gap-2 pt-2">
-            <Badge variant="secondary">{openTasks} open</Badge>
-            <Badge variant={overdueTasks > 0 ? "destructive" : "secondary"}>
-              {overdueTasks} overdue
-            </Badge>
-          </div>
+      <CardContent className="space-y-4 pt-6">
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="secondary">{openTasks} open</Badge>
+          <Badge variant={overdueTasks > 0 ? "destructive" : "secondary"}>
+            {overdueTasks} overdue
+          </Badge>
         </div>
-        {onCreate && (
-          <Button onClick={onCreate}>
-            <PlusIcon className="size-4" />
-            New task
-          </Button>
-        )}
-      </CardHeader>
-      <CardContent className="space-y-4">
         <div className="grid gap-3 lg:grid-cols-[1fr_180px_180px_220px]">
           <div className="relative">
             <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

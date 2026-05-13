@@ -18,7 +18,6 @@ import {
   Loader2Icon,
   MoonIcon,
   ShieldAlertIcon,
-  Settings2Icon,
   ShieldCheckIcon,
   SunIcon,
   Trash2Icon,
@@ -28,8 +27,10 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { ChartAreaInteractive } from "@/components/chart-area-interactive"
 import { AnalyticsDashboard } from "@/components/dashboard/analytics-dashboard"
 import { DashboardStats } from "@/components/dashboard/dashboard-stats"
+import { ProjectSectionCharts, TaskSectionCharts } from "@/components/dashboard/project-task-section-charts"
 import { ProductivitySuggestions } from "@/components/dashboard/productivity-suggestions"
 import { RecentActivityFeed } from "@/components/dashboard/recent-activity-feed"
+import { SectionHeading } from "@/components/dashboard/section-heading"
 import { TeamCollaboration } from "@/components/dashboard/team-collaboration"
 import { ProjectForm } from "@/components/projects/project-form"
 import { ProjectList } from "@/components/projects/project-list"
@@ -333,7 +334,11 @@ function DashboardContent() {
 
   const renderOverview = () => (
     <div className="dashboard-enter space-y-6">
-      <ChartAreaInteractive />
+      <SectionHeading
+        title="Dashboard Overview"
+        description="Live productivity signals, task activity, and project health across your workspace."
+      />
+      <ChartAreaInteractive tasks={tasks} />
       <DashboardStats stats={stats} />
       <ProductivitySuggestions
         projects={projects}
@@ -383,27 +388,39 @@ function DashboardContent() {
 
   const renderProjects = () =>
     projectViewMode === "list" ? (
-      <ProjectList
-        projects={projects}
-        tasks={tasks}
-        onCreate={() => setProjectViewMode("create")}
-        onEdit={(project) => {
-          setEditingProject(project)
-          setProjectViewMode("edit")
-        }}
-        onDelete={(projectId) => {
-          const project = projects.find((item) => item.id === projectId)
-          setDeleteTarget({
-            type: "project",
-            id: projectId,
-            name: project?.name || "this project",
-          })
-        }}
-        onView={(project) => {
-          setEditingProject(project)
-          setProjectViewMode("edit")
-        }}
-      />
+      <div className="space-y-6">
+        <SectionHeading
+          title="Project Management"
+          description="Create, prioritize, and track project delivery across your workspace."
+          action={
+            <Button onClick={() => setProjectViewMode("create")}>
+              <FolderPlusIcon className="size-4" />
+              New project
+            </Button>
+          }
+        />
+        <ProjectSectionCharts projects={projects} tasks={tasks} />
+        <ProjectList
+          projects={projects}
+          tasks={tasks}
+          onEdit={(project) => {
+            setEditingProject(project)
+            setProjectViewMode("edit")
+          }}
+          onDelete={(projectId) => {
+            const project = projects.find((item) => item.id === projectId)
+            setDeleteTarget({
+              type: "project",
+              id: projectId,
+              name: project?.name || "this project",
+            })
+          }}
+          onView={(project) => {
+            setEditingProject(project)
+            setProjectViewMode("edit")
+          }}
+        />
+      </div>
     ) : (
       <ProjectForm
         project={editingProject}
@@ -418,28 +435,40 @@ function DashboardContent() {
 
   const renderTasks = () =>
     taskViewMode === "list" ? (
-      <TaskList
-        tasks={tasks}
-        projects={projects}
-        onCreate={() => setTaskViewMode("create")}
-        onEdit={(task) => {
-          setEditingTask(task)
-          setTaskViewMode("edit")
-        }}
-        onDelete={(taskId) => {
-          const task = tasks.find((item) => item.id === taskId)
-          setDeleteTarget({
-            type: "task",
-            id: taskId,
-            name: task?.title || "this task",
-          })
-        }}
-        onToggleComplete={handleToggleTaskComplete}
-        onView={(task) => {
-          setEditingTask(task)
-          setTaskViewMode("edit")
-        }}
-      />
+      <div className="space-y-6">
+        <SectionHeading
+          title="Task Management"
+          description="Search, filter, assign, prioritize, and complete tasks by project."
+          action={
+            <Button onClick={() => setTaskViewMode("create")}>
+              <ListChecksIcon className="size-4" />
+              New task
+            </Button>
+          }
+        />
+        <TaskSectionCharts tasks={tasks} />
+        <TaskList
+          tasks={tasks}
+          projects={projects}
+          onEdit={(task) => {
+            setEditingTask(task)
+            setTaskViewMode("edit")
+          }}
+          onDelete={(taskId) => {
+            const task = tasks.find((item) => item.id === taskId)
+            setDeleteTarget({
+              type: "task",
+              id: taskId,
+              name: task?.title || "this task",
+            })
+          }}
+          onToggleComplete={handleToggleTaskComplete}
+          onView={(task) => {
+            setEditingTask(task)
+            setTaskViewMode("edit")
+          }}
+        />
+      </div>
     ) : (
       <TaskForm
         task={editingTask}
@@ -483,15 +512,10 @@ function DashboardContent() {
 
   const renderSettings = () => (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-md bg-primary/10 text-primary">
-          <Settings2Icon className="size-5" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-          <p className="text-sm text-muted-foreground">Manage profile, account, and notification preferences.</p>
-        </div>
-      </div>
+      <SectionHeading
+        title="Settings"
+        description="Manage profile, account, and notification preferences."
+      />
 
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <Card>
