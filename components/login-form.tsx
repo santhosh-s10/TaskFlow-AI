@@ -49,10 +49,23 @@ export function LoginForm({
     setSuccess('')
 
     try {
+      const email = formData.email.trim().toLowerCase()
+      if (!email || !formData.password) {
+        setError('Enter your email and password to continue.')
+        setIsLoading(false)
+        return
+      }
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        setError('Enter a valid email address.')
+        setIsLoading(false)
+        return
+      }
+
       const callbackUrl =
         new URLSearchParams(window.location.search).get('callbackUrl') || '/dashboard'
       const result = await signIn('credentials', {
-        email: formData.email,
+        email,
         password: formData.password,
         redirect: false,
         callbackUrl,
@@ -61,10 +74,10 @@ export function LoginForm({
       if (result?.ok) {
         setSuccess('Login successful! Redirecting to dashboard...')
         setTimeout(() => {
-          router.push(result.url || callbackUrl)
+          router.replace(result.url || callbackUrl)
         }, 1500)
       } else {
-        setError('Invalid email or password')
+        setError('The email or password is incorrect. Please check both and try again.')
       }
     } catch {
       setError('An error occurred. Please try again.')
@@ -108,7 +121,9 @@ export function LoginForm({
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input
                   id="email"
-                  type="email"
+                  type="text"
+                  inputMode="email"
+                  autoComplete="email"
                   placeholder="m@example.com"
                   required
                   value={formData.email}

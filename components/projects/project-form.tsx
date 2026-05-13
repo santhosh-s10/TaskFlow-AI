@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon } from "lucide-react"
+import { CalendarIcon, Loader2Icon } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 
@@ -37,11 +37,39 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading }: ProjectF
     priority: project?.priority || 'medium' as Project['priority'],
     dueDate: project?.dueDate ? new Date(project.dueDate) : new Date(),
   })
+  const [errors, setErrors] = useState<Partial<Record<keyof ProjectFormData, string>>>({})
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    const nextErrors: Partial<Record<keyof ProjectFormData, string>> = {}
+    const trimmedName = formData.name.trim()
+    const trimmedDescription = formData.description.trim()
+
+    if (!trimmedName) {
+      nextErrors.name = "Project name is required."
+    } else if (trimmedName.length > 100) {
+      nextErrors.name = "Project name must be 100 characters or fewer."
+    }
+
+    if (!trimmedDescription) {
+      nextErrors.description = "Project description is required."
+    } else if (trimmedDescription.length > 500) {
+      nextErrors.description = "Description must be 500 characters or fewer."
+    }
+
+    if (!formData.dueDate || Number.isNaN(formData.dueDate.getTime())) {
+      nextErrors.dueDate = "Choose a valid due date."
+    }
+
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) {
+      return
+    }
+
     onSubmit({
       ...formData,
+      name: trimmedName,
+      description: trimmedDescription,
       dueDate: formData.dueDate.toISOString().split('T')[0],
       ...(project ? { id: project.id } : {}),
     })
@@ -49,6 +77,7 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading }: ProjectF
 
   const handleInputChange = <K extends keyof ProjectFormData>(field: K, value: ProjectFormData[K]) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+    setErrors(prev => ({ ...prev, [field]: undefined }))
   }
 
   return (
@@ -68,8 +97,10 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading }: ProjectF
               value={formData.name}
               onChange={(e) => handleInputChange('name', e.target.value)}
               placeholder="Enter project name"
+              aria-invalid={Boolean(errors.name)}
               required
             />
+            {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
           </div>
 
           <div className="space-y-2">
@@ -80,7 +111,10 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading }: ProjectF
               onChange={(e) => handleInputChange('description', e.target.value)}
               placeholder="Describe your project"
               rows={3}
+              aria-invalid={Boolean(errors.description)}
+              required
             />
+            {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -143,6 +177,7 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading }: ProjectF
                 />
               </PopoverContent>
             </Popover>
+            {errors.dueDate && <p className="text-sm text-destructive">{errors.dueDate}</p>}
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
@@ -155,6 +190,7 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading }: ProjectF
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>
+              {isLoading && <Loader2Icon className="size-4 animate-spin" />}
               {isLoading ? 'Saving...' : project ? 'Update Project' : 'Create Project'}
             </Button>
           </div>

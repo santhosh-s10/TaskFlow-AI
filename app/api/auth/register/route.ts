@@ -5,31 +5,50 @@ import User from '@/models/User'
 export async function POST(request: NextRequest) {
   try {
     const { name, email, password } = await request.json()
+    const trimmedName = typeof name === 'string' ? name.trim() : ''
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : ''
 
-    // Validate input
-    if (!name || !email || !password) {
+    if (!trimmedName || !normalizedEmail || !password) {
       return NextResponse.json(
-        { error: 'Name, email, and password are required' },
+        { error: 'Please enter your full name, email, and password.' },
         { status: 400 }
       )
     }
 
-    // Connect to database
+    if (trimmedName.length < 2 || trimmedName.length > 50) {
+      return NextResponse.json(
+        { error: 'Full name must be between 2 and 50 characters.' },
+        { status: 400 }
+      )
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      return NextResponse.json(
+        { error: 'Please enter a valid email address.' },
+        { status: 400 }
+      )
+    }
+
+    if (typeof password !== 'string' || password.length < 6) {
+      return NextResponse.json(
+        { error: 'Password must be at least 6 characters long.' },
+        { status: 400 }
+      )
+    }
+
     await connectToDatabase()
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email })
+    const existingUser = await User.findOne({ email: normalizedEmail })
     if (existingUser) {
       return NextResponse.json(
-        { error: 'User with this email already exists' },
+        { error: 'An account with this email already exists. Try logging in instead.' },
         { status: 409 }
       )
     }
 
-    // Create new user
     const user = new User({
-      name,
-      email,
+      name: trimmedName,
+      email: normalizedEmail,
       password
     })
 
@@ -50,7 +69,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Registration error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Unable to create the account right now. Please try again.' },
       { status: 500 }
     )
   }

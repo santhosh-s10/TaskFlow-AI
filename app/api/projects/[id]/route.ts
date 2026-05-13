@@ -20,15 +20,44 @@ export async function PATCH(request: Request, context: RouteContext) {
   const { id } = await context.params
   const body = await request.json()
   await connectToDatabase()
+  const name = typeof body.name === "string" ? body.name.trim() : ""
+  const description = typeof body.description === "string" ? body.description.trim() : ""
+  const dueDate = body.dueDate ? new Date(body.dueDate) : null
+
+  if (!name) {
+    return NextResponse.json({ error: "Project name is required." }, { status: 400 })
+  }
+
+  if (name.length > 100) {
+    return NextResponse.json(
+      { error: "Project name must be 100 characters or fewer." },
+      { status: 400 }
+    )
+  }
+
+  if (!description) {
+    return NextResponse.json({ error: "Project description is required." }, { status: 400 })
+  }
+
+  if (description.length > 500) {
+    return NextResponse.json(
+      { error: "Description must be 500 characters or fewer." },
+      { status: 400 }
+    )
+  }
+
+  if (!dueDate || Number.isNaN(dueDate.getTime())) {
+    return NextResponse.json({ error: "Choose a valid project due date." }, { status: 400 })
+  }
 
   const project = await Project.findOneAndUpdate(
     { _id: id, userId: session.user.id },
     {
-      name: body.name,
-      description: body.description,
+      name,
+      description,
       status: body.status,
       priority: body.priority,
-      dueDate: body.dueDate,
+      dueDate,
     },
     { new: true, runValidators: true }
   )

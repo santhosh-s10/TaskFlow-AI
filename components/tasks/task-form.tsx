@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
-import { CalendarIcon, X } from "lucide-react"
+import { CalendarIcon, Loader2Icon, X } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 
@@ -47,11 +47,55 @@ export function TaskForm({ task, projects, onSubmit, onCancel, isLoading }: Task
   })
 
   const [newTag, setNewTag] = useState('')
+  const [errors, setErrors] = useState<Partial<Record<keyof TaskFormData, string>>>({})
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    const nextErrors: Partial<Record<keyof TaskFormData, string>> = {}
+    const trimmedTitle = formData.title.trim()
+    const trimmedDescription = formData.description.trim()
+    const trimmedAssignedTo = formData.assignedTo.trim()
+
+    if (!trimmedTitle) {
+      nextErrors.title = "Task title is required."
+    } else if (trimmedTitle.length > 120) {
+      nextErrors.title = "Task title must be 120 characters or fewer."
+    }
+
+    if (!trimmedDescription) {
+      nextErrors.description = "Task description is required."
+    } else if (trimmedDescription.length > 500) {
+      nextErrors.description = "Description must be 500 characters or fewer."
+    }
+
+    if (!formData.projectId) {
+      nextErrors.projectId = "Select a project for this task."
+    }
+
+    if (!trimmedAssignedTo) {
+      nextErrors.assignedTo = "Assignee email is required."
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedAssignedTo)) {
+      nextErrors.assignedTo = "Enter a valid assignee email address."
+    }
+
+    if (formData.tags.length === 0) {
+      nextErrors.tags = "Add at least one tag."
+    }
+
+    if (!formData.dueDate || Number.isNaN(formData.dueDate.getTime())) {
+      nextErrors.dueDate = "Choose a valid due date."
+    }
+
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) {
+      return
+    }
+
     onSubmit({
       ...formData,
+      title: trimmedTitle,
+      description: trimmedDescription,
+      assignedTo: trimmedAssignedTo,
       dueDate: formData.dueDate.toISOString().split('T')[0],
       ...(task ? { id: task.id } : {}),
     })
@@ -59,10 +103,15 @@ export function TaskForm({ task, projects, onSubmit, onCancel, isLoading }: Task
 
   const handleInputChange = <K extends keyof TaskFormData>(field: K, value: TaskFormData[K]) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+    setErrors(prev => ({ ...prev, [field]: undefined }))
   }
 
   const addTag = () => {
     if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
+      if (newTag.trim().length > 24) {
+        setErrors(prev => ({ ...prev, tags: "Tags must be 24 characters or fewer." }))
+        return
+      }
       setFormData(prev => ({
         ...prev,
         tags: [...prev.tags, newTag.trim()]
@@ -102,8 +151,10 @@ export function TaskForm({ task, projects, onSubmit, onCancel, isLoading }: Task
               value={formData.title}
               onChange={(e) => handleInputChange('title', e.target.value)}
               placeholder="Enter task title"
+              aria-invalid={Boolean(errors.title)}
               required
             />
+            {errors.title && <p className="text-sm text-destructive">{errors.title}</p>}
           </div>
 
           <div className="space-y-2">
@@ -114,7 +165,10 @@ export function TaskForm({ task, projects, onSubmit, onCancel, isLoading }: Task
               onChange={(e) => handleInputChange('description', e.target.value)}
               placeholder="Describe your task"
               rows={3}
+              aria-invalid={Boolean(errors.description)}
+              required
             />
+            {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -135,6 +189,7 @@ export function TaskForm({ task, projects, onSubmit, onCancel, isLoading }: Task
                   ))}
                 </SelectContent>
               </Select>
+              {errors.projectId && <p className="text-sm text-destructive">{errors.projectId}</p>}
             </div>
 
             <div className="space-y-2">
@@ -181,7 +236,10 @@ export function TaskForm({ task, projects, onSubmit, onCancel, isLoading }: Task
                 onChange={(e) => handleInputChange('assignedTo', e.target.value)}
                 placeholder="email@example.com"
                 type="email"
+                aria-invalid={Boolean(errors.assignedTo)}
+                required
               />
+              {errors.assignedTo && <p className="text-sm text-destructive">{errors.assignedTo}</p>}
             </div>
           </div>
 
@@ -199,6 +257,7 @@ export function TaskForm({ task, projects, onSubmit, onCancel, isLoading }: Task
                 Add
               </Button>
             </div>
+            {errors.tags && <p className="text-sm text-destructive">{errors.tags}</p>}
             {formData.tags.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
                 {formData.tags.map((tag, index) => (
@@ -237,6 +296,7 @@ export function TaskForm({ task, projects, onSubmit, onCancel, isLoading }: Task
                 />
               </PopoverContent>
             </Popover>
+            {errors.dueDate && <p className="text-sm text-destructive">{errors.dueDate}</p>}
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
@@ -249,6 +309,7 @@ export function TaskForm({ task, projects, onSubmit, onCancel, isLoading }: Task
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>
+              {isLoading && <Loader2Icon className="size-4 animate-spin" />}
               {isLoading ? 'Saving...' : task ? 'Update Task' : 'Create Task'}
             </Button>
           </div>

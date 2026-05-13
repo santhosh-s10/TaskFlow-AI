@@ -50,6 +50,27 @@ export function SignupForm({
     setError('')
     setSuccess('')
 
+    const name = formData.name.trim()
+    const email = formData.email.trim().toLowerCase()
+
+    if (!name || !email || !formData.password || !formData.confirmPassword) {
+      setError('Fill in all fields to create your account.')
+      setIsLoading(false)
+      return
+    }
+
+    if (name.length < 2) {
+      setError('Full name must be at least 2 characters long.')
+      setIsLoading(false)
+      return
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('Enter a valid email address.')
+      setIsLoading(false)
+      return
+    }
+
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match')
@@ -71,8 +92,8 @@ export function SignupForm({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
+          name,
+          email,
           password: formData.password
         })
       })
@@ -82,13 +103,13 @@ export function SignupForm({
       if (response.ok) {
         setSuccess('Account created successfully! Redirecting to dashboard...')
         await signIn('credentials', {
-          email: formData.email,
+          email,
           password: formData.password,
           redirect: false,
           callbackUrl: '/dashboard',
         })
         setTimeout(() => {
-          router.push('/dashboard')
+          router.replace('/dashboard')
         }, 2000)
       } else {
         setError(data.error || 'Failed to create account')
