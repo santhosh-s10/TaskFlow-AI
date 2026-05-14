@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useSession } from "next-auth/react"
+import { signOut, useSession } from "next-auth/react"
 import { useTheme } from "next-themes"
 import {
   CameraIcon,
@@ -40,6 +40,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ConfirmationModal } from "@/components/confirmation-modal"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { Project, Task } from "@/types"
@@ -105,7 +106,7 @@ function readPriorityParam(value: string | null): Project["priority"] | "all" {
 function DashboardContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { data: session } = useSession()
+  const { data: session, update: updateSession } = useSession()
   const { theme, setTheme } = useTheme()
   const tab = searchParams.get("tab")
   const mode = searchParams.get("mode")
@@ -160,9 +161,20 @@ function DashboardContent() {
     fullName: "",
     email: "",
     phone: "",
+    image: "",
+  })
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   })
   const [profileMessage, setProfileMessage] = useState("")
   const [profileError, setProfileError] = useState("")
+  const [accountDevices, setAccountDevices] = useState<
+    Array<{ id: string; name: string; status: string; lastSeen: string }>
+  >([])
+  const [emailVerified, setEmailVerified] = useState<string | null>(null)
+  const [isAccountSaving, setIsAccountSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -257,6 +269,42 @@ function DashboardContent() {
     const timeout = window.setTimeout(loadTaskRows, 0)
     return () => window.clearTimeout(timeout)
   }, [loadTaskRows])
+
+  const loadAccountSettings = useCallback(async () => {
+    try {
+      const response = await fetch("/api/account", { cache: "no-store" })
+      const data = await readJsonResponse<{
+        user: {
+          name: string
+          email: string
+          phone: string
+          image: string | null
+          emailVerified: string | null
+        }
+        devices: Array<{ id: string; name: string; status: string; lastSeen: string }>
+      }>(response)
+
+      setProfileForm({
+        fullName: data.user.name,
+        email: data.user.email,
+        phone: data.user.phone,
+        image: data.user.image ?? "",
+      })
+      setEmailVerified(data.user.emailVerified)
+      setAccountDevices(data.devices)
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : "Unable to load account settings")
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!session?.user?.id) {
+      return
+    }
+
+    const timeout = window.setTimeout(loadAccountSettings, 0)
+    return () => window.clearTimeout(timeout)
+  }, [loadAccountSettings, session?.user?.id])
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -446,6 +494,8 @@ function DashboardContent() {
     }
 
     setIsDeleting(true)
+    setProfileError("")
+    setProfileMessage("")
 
     try {
       if (deleteTarget.type === "project") {
@@ -453,10 +503,14 @@ function DashboardContent() {
       } else if (deleteTarget.type === "task") {
         await handleDeleteTask(deleteTarget.id)
       } else {
-        setProfileError("Account deletion is protected. Connect the delete account API before enabling this action.")
+        const response = await fetch("/api/account", { method: "DELETE" })
+        await readJsonResponse<{ success: boolean }>(response)
+        await signOut({ callbackUrl: "/login" })
       }
 
       setDeleteTarget(null)
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : "Unable to delete account")
     } finally {
       setIsDeleting(false)
     }
@@ -701,7 +755,56 @@ function DashboardContent() {
       />
     )
 
-  const handleProfileSubmit = (event: React.FormEvent) => {
+  const refreshSessionUser = async (user: {
+    name: string
+    email: string
+    image: string | null
+    phone: string
+    emailVerified: string | null
+  }) => {
+    await updateSession({
+      user: {
+        ...session?.user,
+        name: user.name,
+        email: user.email,
+        image: user.image,
+        phone: user.phone,
+        emailVerified: user.emailVerified,
+      },
+    })
+  }
+
+  const handleProfileImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) {
+      return
+    }
+
+    setProfileError("")
+    setProfileMessage("")
+
+    if (!file.type.startsWith("image/")) {
+      setProfileError("Choose a valid image file.")
+      return
+    }
+
+    if (file.size > 500_000) {
+      setProfileError("Choose an image under 500 KB.")
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      setProfileForm((previous) => ({
+        ...previous,
+        image: typeof reader.result === "string" ? reader.result : previous.image,
+      }))
+    }
+    reader.onerror = () => setProfileError("Unable to read that image.")
+    reader.readAsDataURL(file)
+  }
+
+  const handleProfileSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
     setProfileError("")
     setProfileMessage("")
@@ -725,8 +828,98 @@ function DashboardContent() {
       return
     }
 
-    setProfileForm({ fullName, email, phone })
-    setProfileMessage("Profile settings look good. Saving to the database can be connected next.")
+    setIsAccountSaving(true)
+
+    try {
+      const response = await fetch("/api/account", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "profile",
+          name: fullName,
+          email,
+          phone,
+          image: profileForm.image || null,
+        }),
+      })
+      const { user } = await readJsonResponse<{
+        user: {
+          name: string
+          email: string
+          phone: string
+          image: string | null
+          emailVerified: string | null
+        }
+      }>(response)
+
+      setProfileForm({
+        fullName: user.name,
+        email: user.email,
+        phone: user.phone,
+        image: user.image ?? "",
+      })
+      setEmailVerified(user.emailVerified)
+      await refreshSessionUser(user)
+      setProfileMessage("Profile updated.")
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : "Unable to update profile")
+    } finally {
+      setIsAccountSaving(false)
+    }
+  }
+
+  const handlePasswordSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setProfileError("")
+    setProfileMessage("")
+
+    setIsAccountSaving(true)
+
+    try {
+      const response = await fetch("/api/account", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "password", ...passwordForm }),
+      })
+      await readJsonResponse<{ message: string }>(response)
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" })
+      setProfileMessage("Password updated.")
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : "Unable to update password")
+    } finally {
+      setIsAccountSaving(false)
+    }
+  }
+
+  const handleVerificationUpdate = async () => {
+    setProfileError("")
+    setProfileMessage("")
+    setIsAccountSaving(true)
+
+    try {
+      const response = await fetch("/api/account", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verification" }),
+      })
+      const { user } = await readJsonResponse<{
+        user: {
+          name: string
+          email: string
+          phone: string
+          image: string | null
+          emailVerified: string | null
+        }
+      }>(response)
+
+      setEmailVerified(user.emailVerified)
+      await refreshSessionUser(user)
+      setProfileMessage("Account verification updated.")
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : "Unable to update verification")
+    } finally {
+      setIsAccountSaving(false)
+    }
   }
 
   const renderSettings = () => (
@@ -747,17 +940,25 @@ function DashboardContent() {
           <CardContent>
             <form className="space-y-4" onSubmit={handleProfileSubmit}>
               <div className="flex items-center gap-4">
-                <div className="flex size-16 items-center justify-center rounded-lg bg-primary/10 text-lg font-semibold text-primary">
-                  {(profileForm.fullName || session?.user?.name || "TU")
-                    .split(" ")
-                    .map((part) => part[0])
-                    .join("")
-                    .slice(0, 2)
-                    .toUpperCase()}
-                </div>
+                <Avatar className="size-16 rounded-lg">
+                  <AvatarImage src={profileForm.image} alt={profileForm.fullName || "Profile picture"} />
+                  <AvatarFallback className="rounded-lg text-lg font-semibold">
+                    {(profileForm.fullName || session?.user?.name || "TU")
+                      .split(" ")
+                      .map((part) => part[0])
+                      .join("")
+                      .slice(0, 2)
+                      .toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
                 <div className="space-y-2">
                   <Label htmlFor="profile-picture">Profile picture</Label>
-                  <Input id="profile-picture" type="file" accept="image/*" />
+                  <Input
+                    id="profile-picture"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleProfileImageChange}
+                  />
                 </div>
               </div>
 
@@ -802,7 +1003,9 @@ function DashboardContent() {
               {profileError && <p className="text-sm text-destructive">{profileError}</p>}
               {profileMessage && <p className="text-sm text-emerald-600">{profileMessage}</p>}
 
-              <Button type="submit">Save profile</Button>
+              <Button type="submit" disabled={isAccountSaving}>
+                {isAccountSaving ? "Saving..." : "Save profile"}
+              </Button>
             </form>
           </CardContent>
         </Card>
@@ -823,27 +1026,77 @@ function DashboardContent() {
                   <p className="text-xs text-muted-foreground">Update your login credentials.</p>
                 </div>
               </div>
-              <Button size="sm" variant="outline">Change</Button>
+              <Button size="sm" variant="outline" type="submit" form="change-password-form">
+                Change
+              </Button>
             </div>
+            <form id="change-password-form" className="grid gap-3 rounded-lg border p-3" onSubmit={handlePasswordSubmit}>
+              <Input
+                type="password"
+                autoComplete="current-password"
+                placeholder="Current password"
+                value={passwordForm.currentPassword}
+                onChange={(event) =>
+                  setPasswordForm((previous) => ({
+                    ...previous,
+                    currentPassword: event.target.value,
+                  }))
+                }
+              />
+              <div className="grid gap-3 md:grid-cols-2">
+                <Input
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="New password"
+                  value={passwordForm.newPassword}
+                  onChange={(event) =>
+                    setPasswordForm((previous) => ({
+                      ...previous,
+                      newPassword: event.target.value,
+                    }))
+                  }
+                />
+                <Input
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Confirm new password"
+                  value={passwordForm.confirmPassword}
+                  onChange={(event) =>
+                    setPasswordForm((previous) => ({
+                      ...previous,
+                      confirmPassword: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+            </form>
             <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
               <div className="flex items-center gap-3">
                 <LaptopIcon className="size-4 text-primary" />
                 <div>
                   <p className="text-sm font-medium">Connected devices</p>
-                  <p className="text-xs text-muted-foreground">Current device active now.</p>
+                  <p className="text-xs text-muted-foreground">
+                    {accountDevices[0]?.name || "Current browser session"} - {accountDevices[0]?.status || "Active now"}.
+                  </p>
                 </div>
               </div>
-              <Button size="sm" variant="outline">View</Button>
+              <Button size="sm" variant="outline" onClick={loadAccountSettings}>
+                Refresh
+              </Button>
             </div>
             <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
               <div className="flex items-center gap-3">
                 <CheckCircle2Icon className="size-4 text-primary" />
                 <div>
                   <p className="text-sm font-medium">Account verification</p>
-                  <p className="text-xs text-muted-foreground">Email verification status.</p>
+                  <p className="text-xs text-muted-foreground">
+                    {emailVerified ? "Verified" : "Not verified"} for {profileForm.email || session?.user?.email}.
+                  </p>
                 </div>
               </div>
-              <Button size="sm" variant="outline">Verify</Button>
+              <Button size="sm" variant="outline" onClick={handleVerificationUpdate} disabled={isAccountSaving}>
+                {emailVerified ? "Update" : "Verify"}
+              </Button>
             </div>
             <div className="flex items-center justify-between gap-4 rounded-lg border border-destructive/30 p-3">
               <div className="flex items-center gap-3">
@@ -1008,7 +1261,7 @@ function DashboardContent() {
             : deleteTarget?.type === "task"
               ? `Delete "${deleteTarget.name}"? This action cannot be undone.`
               : deleteTarget?.type === "account"
-                ? `Delete ${deleteTarget.name}? This is a protected action and needs a connected account deletion API.`
+                ? `Delete ${deleteTarget.name}? This permanently removes your profile, projects, and tasks.`
                 : ""
         }
         confirmLabel="Delete"

@@ -6,6 +6,7 @@ interface IUser {
   email: string
   password?: string
   image?: string | null
+  phone?: string | null
   emailVerified?: Date | null
   accounts?: mongoose.Types.ObjectId[]
   createdAt: Date
@@ -46,6 +47,12 @@ const userSchema = new mongoose.Schema<IUser, UserModel, UserMethods>({
   image: {
     type: String,
     default: null
+  },
+  phone: {
+    type: String,
+    trim: true,
+    default: null,
+    maxlength: [30, 'Phone number cannot exceed 30 characters']
   },
   emailVerified: {
     type: Date,

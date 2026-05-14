@@ -119,7 +119,29 @@ export const authOptions: NextAuthOptions = {
 
       return true
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
+      if (trigger === "update" && session?.user) {
+        token.name = session.user.name ?? token.name
+        token.email = session.user.email ?? token.email
+        token.picture = session.user.image ?? token.picture
+        token.phone = session.user.phone ?? token.phone ?? null
+        token.emailVerified = session.user.emailVerified ?? token.emailVerified ?? null
+      }
+
+      if (token.id) {
+        await connectToDatabase()
+        const databaseUser = await User.findById(token.id)
+
+        if (databaseUser) {
+          token.name = databaseUser.name
+          token.email = databaseUser.email
+          token.picture = databaseUser.image ?? undefined
+          token.phone = databaseUser.phone ?? null
+          token.emailVerified = databaseUser.emailVerified?.toISOString() ?? null
+          return token
+        }
+      }
+
       const email = user?.email ?? token.email
 
       if (email) {
@@ -134,6 +156,8 @@ export const authOptions: NextAuthOptions = {
         token.name = databaseUser.name
         token.email = databaseUser.email
         token.picture = databaseUser.image ?? undefined
+        token.phone = databaseUser.phone ?? null
+        token.emailVerified = databaseUser.emailVerified?.toISOString() ?? null
       }
 
       return token
@@ -141,6 +165,11 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user && token.id) {
         session.user.id = token.id as string
+        session.user.name = token.name ?? session.user.name
+        session.user.email = token.email ?? session.user.email
+        session.user.image = (token.picture as string | undefined) ?? null
+        session.user.phone = token.phone ?? null
+        session.user.emailVerified = token.emailVerified ?? null
       }
       return session
     },
