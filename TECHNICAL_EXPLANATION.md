@@ -59,7 +59,6 @@ Local React state is used for forms, dashboard tab mode, filters, and table pagi
 - Persist team members and comments in the database.
 - Add email verification for new accounts.
 - Add role-based team permissions.
-- Add server-side search and filtering for paginated project/task rows.
 - Add automated tests for auth, CRUD, and dashboard metrics.
 
 ## AI Usage Disclosure

@@ -48,6 +48,11 @@ import { cn } from "@/lib/utils"
 interface ProjectListProps {
   projects: Project[]
   tasks?: Task[]
+  filters?: {
+    query: string
+    status: Project["status"] | "all"
+    priority: Project["priority"] | "all"
+  }
   pagination?: {
     page: number
     pageSize: number
@@ -56,6 +61,11 @@ interface ProjectListProps {
     onPageChange: (page: number) => void
   }
   isLoading?: boolean
+  onFiltersChange?: (filters: {
+    query: string
+    status: Project["status"] | "all"
+    priority: Project["priority"] | "all"
+  }) => void
   onEdit?: (project: Project) => void
   onDelete?: (projectId: string) => void
   onView?: (project: Project) => void
@@ -90,8 +100,10 @@ const priorityClasses: Record<Project["priority"], string> = {
 export function ProjectList({
   projects,
   tasks = [],
+  filters,
   pagination,
   isLoading = false,
+  onFiltersChange,
   onEdit,
   onDelete,
   onView,
@@ -99,22 +111,50 @@ export function ProjectList({
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<Project["status"] | "all">("all")
   const [priorityFilter, setPriorityFilter] = useState<Project["priority"] | "all">("all")
+  const activeQuery = filters?.query ?? query
+  const activeStatusFilter = filters?.status ?? statusFilter
+  const activePriorityFilter = filters?.priority ?? priorityFilter
+
+  const updateFilters = (nextFilters: {
+    query?: string
+    status?: Project["status"] | "all"
+    priority?: Project["priority"] | "all"
+  }) => {
+    const mergedFilters = {
+      query: nextFilters.query ?? activeQuery,
+      status: nextFilters.status ?? activeStatusFilter,
+      priority: nextFilters.priority ?? activePriorityFilter,
+    }
+
+    if (onFiltersChange) {
+      onFiltersChange(mergedFilters)
+      return
+    }
+
+    setQuery(mergedFilters.query)
+    setStatusFilter(mergedFilters.status)
+    setPriorityFilter(mergedFilters.priority)
+  }
 
   const filteredProjects = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase()
+    if (pagination) {
+      return projects
+    }
+
+    const normalizedQuery = activeQuery.trim().toLowerCase()
 
     return projects.filter((project) => {
       const matchesSearch =
         !normalizedQuery ||
         project.name.toLowerCase().includes(normalizedQuery) ||
         project.description.toLowerCase().includes(normalizedQuery)
-      const matchesStatus = statusFilter === "all" || project.status === statusFilter
+      const matchesStatus = activeStatusFilter === "all" || project.status === activeStatusFilter
       const matchesPriority =
-        priorityFilter === "all" || project.priority === priorityFilter
+        activePriorityFilter === "all" || project.priority === activePriorityFilter
 
       return matchesSearch && matchesStatus && matchesPriority
     })
-  }, [priorityFilter, projects, query, statusFilter])
+  }, [activePriorityFilter, activeQuery, activeStatusFilter, pagination, projects])
 
   const getProjectTasks = (projectId: string) => {
     return tasks.filter((task) => task.projectId === projectId)
@@ -137,15 +177,15 @@ export function ProjectList({
           <div className="relative">
             <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              value={activeQuery}
+              onChange={(event) => updateFilters({ query: event.target.value })}
               placeholder="Search projects..."
               className="pl-9"
             />
           </div>
           <Select
-            value={statusFilter}
-            onValueChange={(value) => setStatusFilter(value as Project["status"] | "all")}
+            value={activeStatusFilter}
+            onValueChange={(value) => updateFilters({ status: value as Project["status"] | "all" })}
           >
             <SelectTrigger>
               <SelectValue placeholder="Status" />
@@ -159,8 +199,8 @@ export function ProjectList({
             </SelectContent>
           </Select>
           <Select
-            value={priorityFilter}
-            onValueChange={(value) => setPriorityFilter(value as Project["priority"] | "all")}
+            value={activePriorityFilter}
+            onValueChange={(value) => updateFilters({ priority: value as Project["priority"] | "all" })}
           >
             <SelectTrigger>
               <SelectValue placeholder="Priority" />

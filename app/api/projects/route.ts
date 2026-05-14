@@ -4,10 +4,16 @@ import { NextRequest, NextResponse } from "next/server"
 import { authOptions } from "@/lib/auth"
 import connectToDatabase from "@/lib/mongodb"
 import { serializeProject } from "@/lib/serializers"
-import Project from "@/models/Project"
+import Project, { type IProject } from "@/models/Project"
 
 const DEFAULT_PAGE_SIZE = 10
 const MAX_PAGE_SIZE = 50
+type ProjectQuery = {
+  userId: string
+  $or?: Array<{ name?: RegExp; description?: RegExp }>
+  status?: IProject["status"]
+  priority?: IProject["priority"]
+}
 
 function getPaginationParams(request: NextRequest) {
   const pageParam = Number(request.nextUrl.searchParams.get("page") ?? "1")
@@ -16,6 +22,37 @@ function getPaginationParams(request: NextRequest) {
   const page = Math.max(Number.isFinite(pageParam) ? Math.floor(pageParam) : 1, 1)
 
   return { page, limit }
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+function getProjectQuery(request: NextRequest, userId: string): ProjectQuery {
+  const query: ProjectQuery = { userId }
+  const search = request.nextUrl.searchParams.get("q")?.trim()
+  const status = request.nextUrl.searchParams.get("status")
+  const priority = request.nextUrl.searchParams.get("priority")
+
+  if (search) {
+    const searchRegex = new RegExp(escapeRegex(search), "i")
+    query.$or = [{ name: searchRegex }, { description: searchRegex }]
+  }
+
+  if (
+    status === "planning" ||
+    status === "in-progress" ||
+    status === "completed" ||
+    status === "on-hold"
+  ) {
+    query.status = status
+  }
+
+  if (priority === "low" || priority === "medium" || priority === "high") {
+    query.priority = priority
+  }
+
+  return query
 }
 
 export async function GET(request: NextRequest) {
@@ -31,11 +68,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ projects: projects.map(serializeProject) })
   }
 
+  const query = getProjectQuery(request, session.user.id)
   const { page, limit } = getPaginationParams(request)
-  const total = await Project.countDocuments({ userId: session.user.id })
+  const total = await Project.countDocuments(query)
   const totalPages = Math.max(Math.ceil(total / limit), 1)
   const currentPage = Math.min(page, totalPages)
-  const projects = await Project.find({ userId: session.user.id })
+  const projects = await Project.find(query)
     .sort({ createdAt: -1, _id: -1 })
     .skip((currentPage - 1) * limit)
     .limit(limit)

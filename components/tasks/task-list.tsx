@@ -49,6 +49,12 @@ import { cn } from "@/lib/utils"
 interface TaskListProps {
   tasks: Task[]
   projects?: Project[]
+  filters?: {
+    query: string
+    status: Task["status"] | "all"
+    priority: Task["priority"] | "all"
+    projectId: string
+  }
   pagination?: {
     page: number
     pageSize: number
@@ -57,6 +63,12 @@ interface TaskListProps {
     onPageChange: (page: number) => void
   }
   isLoading?: boolean
+  onFiltersChange?: (filters: {
+    query: string
+    status: Task["status"] | "all"
+    priority: Task["priority"] | "all"
+    projectId: string
+  }) => void
   onEdit?: (task: Task) => void
   onDelete?: (taskId: string) => void
   onView?: (task: Task) => void
@@ -90,8 +102,10 @@ const priorityClasses: Record<Task["priority"], string> = {
 export function TaskList({
   tasks,
   projects = [],
+  filters,
   pagination,
   isLoading = false,
+  onFiltersChange,
   onEdit,
   onDelete,
   onView,
@@ -101,6 +115,34 @@ export function TaskList({
   const [statusFilter, setStatusFilter] = useState<Task["status"] | "all">("all")
   const [priorityFilter, setPriorityFilter] = useState<Task["priority"] | "all">("all")
   const [projectFilter, setProjectFilter] = useState<string>("all")
+  const activeQuery = filters?.query ?? query
+  const activeStatusFilter = filters?.status ?? statusFilter
+  const activePriorityFilter = filters?.priority ?? priorityFilter
+  const activeProjectFilter = filters?.projectId ?? projectFilter
+
+  const updateFilters = (nextFilters: {
+    query?: string
+    status?: Task["status"] | "all"
+    priority?: Task["priority"] | "all"
+    projectId?: string
+  }) => {
+    const mergedFilters = {
+      query: nextFilters.query ?? activeQuery,
+      status: nextFilters.status ?? activeStatusFilter,
+      priority: nextFilters.priority ?? activePriorityFilter,
+      projectId: nextFilters.projectId ?? activeProjectFilter,
+    }
+
+    if (onFiltersChange) {
+      onFiltersChange(mergedFilters)
+      return
+    }
+
+    setQuery(mergedFilters.query)
+    setStatusFilter(mergedFilters.status)
+    setPriorityFilter(mergedFilters.priority)
+    setProjectFilter(mergedFilters.projectId)
+  }
 
   const projectNameById = useMemo(() => {
     return new Map(projects.map((project) => [project.id, project.name]))
@@ -115,7 +157,11 @@ export function TaskList({
   }
 
   const filteredTasks = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase()
+    if (pagination) {
+      return tasks
+    }
+
+    const normalizedQuery = activeQuery.trim().toLowerCase()
 
     return tasks.filter((task) => {
       const projectName = projectNameById.get(task.projectId) || "Unknown project"
@@ -125,13 +171,21 @@ export function TaskList({
         task.description.toLowerCase().includes(normalizedQuery) ||
         projectName.toLowerCase().includes(normalizedQuery) ||
         task.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery))
-      const matchesStatus = statusFilter === "all" || task.status === statusFilter
-      const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter
-      const matchesProject = projectFilter === "all" || task.projectId === projectFilter
+      const matchesStatus = activeStatusFilter === "all" || task.status === activeStatusFilter
+      const matchesPriority = activePriorityFilter === "all" || task.priority === activePriorityFilter
+      const matchesProject = activeProjectFilter === "all" || task.projectId === activeProjectFilter
 
       return matchesSearch && matchesStatus && matchesPriority && matchesProject
     })
-  }, [priorityFilter, projectFilter, projectNameById, query, statusFilter, tasks])
+  }, [
+    activePriorityFilter,
+    activeProjectFilter,
+    activeQuery,
+    activeStatusFilter,
+    pagination,
+    projectNameById,
+    tasks,
+  ])
 
   const openTasks = tasks.filter((task) => task.status !== "completed").length
   const overdueTasks = tasks.filter(isOverdue).length
@@ -149,15 +203,15 @@ export function TaskList({
           <div className="relative">
             <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              value={activeQuery}
+              onChange={(event) => updateFilters({ query: event.target.value })}
               placeholder="Search tasks, tags, projects..."
               className="pl-9"
             />
           </div>
           <Select
-            value={statusFilter}
-            onValueChange={(value) => setStatusFilter(value as Task["status"] | "all")}
+            value={activeStatusFilter}
+            onValueChange={(value) => updateFilters({ status: value as Task["status"] | "all" })}
           >
             <SelectTrigger>
               <SelectValue placeholder="Status" />
@@ -170,8 +224,8 @@ export function TaskList({
             </SelectContent>
           </Select>
           <Select
-            value={priorityFilter}
-            onValueChange={(value) => setPriorityFilter(value as Task["priority"] | "all")}
+            value={activePriorityFilter}
+            onValueChange={(value) => updateFilters({ priority: value as Task["priority"] | "all" })}
           >
             <SelectTrigger>
               <SelectValue placeholder="Priority" />
@@ -183,7 +237,7 @@ export function TaskList({
               <SelectItem value="low">Low</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={projectFilter} onValueChange={setProjectFilter}>
+          <Select value={activeProjectFilter} onValueChange={(value) => updateFilters({ projectId: value })}>
             <SelectTrigger>
               <SelectValue placeholder="Project" />
             </SelectTrigger>

@@ -56,6 +56,17 @@ type PaginationMeta = {
   totalItems: number
   totalPages: number
 }
+type ProjectFilters = {
+  query: string
+  status: Project["status"] | "all"
+  priority: Project["priority"] | "all"
+}
+type TaskFilters = {
+  query: string
+  status: Task["status"] | "all"
+  priority: Task["priority"] | "all"
+  projectId: string
+}
 
 const LIST_PAGE_SIZE = 10
 
@@ -72,6 +83,23 @@ async function readJsonResponse<T>(response: Response): Promise<T> {
 function readPageParam(value: string | null) {
   const page = Number(value)
   return Number.isFinite(page) && page > 0 ? Math.floor(page) : 1
+}
+
+function readProjectStatusParam(value: string | null): Project["status"] | "all" {
+  return value === "planning" ||
+    value === "in-progress" ||
+    value === "completed" ||
+    value === "on-hold"
+    ? value
+    : "all"
+}
+
+function readTaskStatusParam(value: string | null): Task["status"] | "all" {
+  return value === "todo" || value === "in-progress" || value === "completed" ? value : "all"
+}
+
+function readPriorityParam(value: string | null): Project["priority"] | "all" {
+  return value === "low" || value === "medium" || value === "high" ? value : "all"
 }
 
 function DashboardContent() {
@@ -91,6 +119,17 @@ function DashboardContent() {
       : "overview"
   const projectPage = readPageParam(searchParams.get("projectPage"))
   const taskPage = readPageParam(searchParams.get("taskPage"))
+  const projectFilters: ProjectFilters = {
+    query: searchParams.get("projectSearch") ?? "",
+    status: readProjectStatusParam(searchParams.get("projectStatus")),
+    priority: readPriorityParam(searchParams.get("projectPriority")),
+  }
+  const taskFilters: TaskFilters = {
+    query: searchParams.get("taskSearch") ?? "",
+    status: readTaskStatusParam(searchParams.get("taskStatus")),
+    priority: readPriorityParam(searchParams.get("taskPriority")),
+    projectId: searchParams.get("taskProject") ?? "all",
+  }
 
   const [projects, setProjects] = useState<Project[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
@@ -156,9 +195,16 @@ function DashboardContent() {
     setError("")
 
     try {
-      const response = await fetch(`/api/projects?page=${projectPage}&limit=${LIST_PAGE_SIZE}`, {
-        cache: "no-store",
+      const params = new URLSearchParams({
+        page: String(projectPage),
+        limit: String(LIST_PAGE_SIZE),
       })
+
+      if (projectFilters.query.trim()) params.set("q", projectFilters.query.trim())
+      if (projectFilters.status !== "all") params.set("status", projectFilters.status)
+      if (projectFilters.priority !== "all") params.set("priority", projectFilters.priority)
+
+      const response = await fetch(`/api/projects?${params.toString()}`, { cache: "no-store" })
       const data = await readJsonResponse<{ projects: Project[]; pagination: PaginationMeta }>(response)
 
       setProjectRows(data.projects)
@@ -168,16 +214,24 @@ function DashboardContent() {
     } finally {
       setIsProjectTableLoading(false)
     }
-  }, [projectPage])
+  }, [projectFilters.priority, projectFilters.query, projectFilters.status, projectPage])
 
   const loadTaskRows = useCallback(async () => {
     setIsTaskTableLoading(true)
     setError("")
 
     try {
-      const response = await fetch(`/api/tasks?page=${taskPage}&limit=${LIST_PAGE_SIZE}`, {
-        cache: "no-store",
+      const params = new URLSearchParams({
+        page: String(taskPage),
+        limit: String(LIST_PAGE_SIZE),
       })
+
+      if (taskFilters.query.trim()) params.set("q", taskFilters.query.trim())
+      if (taskFilters.status !== "all") params.set("status", taskFilters.status)
+      if (taskFilters.priority !== "all") params.set("priority", taskFilters.priority)
+      if (taskFilters.projectId !== "all") params.set("projectId", taskFilters.projectId)
+
+      const response = await fetch(`/api/tasks?${params.toString()}`, { cache: "no-store" })
       const data = await readJsonResponse<{ tasks: Task[]; pagination: PaginationMeta }>(response)
 
       setTaskRows(data.tasks)
@@ -187,7 +241,7 @@ function DashboardContent() {
     } finally {
       setIsTaskTableLoading(false)
     }
-  }, [taskPage])
+  }, [taskFilters.priority, taskFilters.projectId, taskFilters.query, taskFilters.status, taskPage])
 
   useEffect(() => {
     const timeout = window.setTimeout(loadDashboardData, 0)
@@ -224,6 +278,66 @@ function DashboardContent() {
     params.set("tab", view)
     params.delete("mode")
     params.set(view === "projects" ? "projectPage" : "taskPage", String(page))
+    router.push(`/dashboard?${params.toString()}`)
+  }
+
+  const updateProjectFilters = (nextFilters: ProjectFilters) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("tab", "projects")
+    params.delete("mode")
+    params.set("projectPage", "1")
+
+    if (nextFilters.query.trim()) {
+      params.set("projectSearch", nextFilters.query)
+    } else {
+      params.delete("projectSearch")
+    }
+
+    if (nextFilters.status !== "all") {
+      params.set("projectStatus", nextFilters.status)
+    } else {
+      params.delete("projectStatus")
+    }
+
+    if (nextFilters.priority !== "all") {
+      params.set("projectPriority", nextFilters.priority)
+    } else {
+      params.delete("projectPriority")
+    }
+
+    router.push(`/dashboard?${params.toString()}`)
+  }
+
+  const updateTaskFilters = (nextFilters: TaskFilters) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("tab", "tasks")
+    params.delete("mode")
+    params.set("taskPage", "1")
+
+    if (nextFilters.query.trim()) {
+      params.set("taskSearch", nextFilters.query)
+    } else {
+      params.delete("taskSearch")
+    }
+
+    if (nextFilters.status !== "all") {
+      params.set("taskStatus", nextFilters.status)
+    } else {
+      params.delete("taskStatus")
+    }
+
+    if (nextFilters.priority !== "all") {
+      params.set("taskPriority", nextFilters.priority)
+    } else {
+      params.delete("taskPriority")
+    }
+
+    if (nextFilters.projectId !== "all") {
+      params.set("taskProject", nextFilters.projectId)
+    } else {
+      params.delete("taskProject")
+    }
+
     router.push(`/dashboard?${params.toString()}`)
   }
 
@@ -494,11 +608,13 @@ function DashboardContent() {
         <ProjectList
           projects={projectRows}
           tasks={tasks}
+          filters={projectFilters}
           isLoading={isProjectTableLoading}
           pagination={{
             ...projectPagination,
             onPageChange: (page) => navigateToPage("projects", page),
           }}
+          onFiltersChange={updateProjectFilters}
           onEdit={(project) => {
             setEditingProject(project)
             setProjectViewMode("edit")
@@ -546,11 +662,13 @@ function DashboardContent() {
         <TaskList
           tasks={taskRows}
           projects={projects}
+          filters={taskFilters}
           isLoading={isTaskTableLoading}
           pagination={{
             ...taskPagination,
             onPageChange: (page) => navigateToPage("tasks", page),
           }}
+          onFiltersChange={updateTaskFilters}
           onEdit={(task) => {
             setEditingTask(task)
             setTaskViewMode("edit")

@@ -1,14 +1,30 @@
 import { getServerSession } from "next-auth"
+import mongoose from "mongoose"
 import { NextRequest, NextResponse } from "next/server"
 
 import { authOptions } from "@/lib/auth"
 import { userOwnsProject } from "@/lib/dashboard-data"
 import connectToDatabase from "@/lib/mongodb"
 import { serializeTask } from "@/lib/serializers"
-import Task from "@/models/Task"
+import Project from "@/models/Project"
+import Task, { type ITask } from "@/models/Task"
 
 const DEFAULT_PAGE_SIZE = 10
 const MAX_PAGE_SIZE = 50
+type TaskQuery = {
+  userId: string
+  _id?: { $exists: false }
+  $or?: Array<
+    | { title: RegExp }
+    | { description: RegExp }
+    | { assignedTo: RegExp }
+    | { tags: RegExp }
+    | { projectId: { $in: mongoose.Types.ObjectId[] } }
+  >
+  status?: ITask["status"]
+  priority?: ITask["priority"]
+  projectId?: mongoose.Types.ObjectId
+}
 
 function getPaginationParams(request: NextRequest) {
   const pageParam = Number(request.nextUrl.searchParams.get("page") ?? "1")
@@ -17,6 +33,51 @@ function getPaginationParams(request: NextRequest) {
   const page = Math.max(Number.isFinite(pageParam) ? Math.floor(pageParam) : 1, 1)
 
   return { page, limit }
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+async function getTaskQuery(request: NextRequest, userId: string): Promise<TaskQuery> {
+  const query: TaskQuery = { userId }
+  const search = request.nextUrl.searchParams.get("q")?.trim()
+  const status = request.nextUrl.searchParams.get("status")
+  const priority = request.nextUrl.searchParams.get("priority")
+  const projectId = request.nextUrl.searchParams.get("projectId")
+
+  if (status === "todo" || status === "in-progress" || status === "completed") {
+    query.status = status
+  }
+
+  if (priority === "low" || priority === "medium" || priority === "high") {
+    query.priority = priority
+  }
+
+  if (projectId && projectId !== "all") {
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      query._id = { $exists: false }
+      return query
+    }
+
+    query.projectId = new mongoose.Types.ObjectId(projectId)
+  }
+
+  if (search) {
+    const searchRegex = new RegExp(escapeRegex(search), "i")
+    const matchingProjects = await Project.find({ userId, name: searchRegex }).select("_id")
+    const matchingProjectIds = matchingProjects.map((project) => project._id)
+
+    query.$or = [
+      { title: searchRegex },
+      { description: searchRegex },
+      { assignedTo: searchRegex },
+      { tags: searchRegex },
+      ...(matchingProjectIds.length > 0 ? [{ projectId: { $in: matchingProjectIds } }] : []),
+    ]
+  }
+
+  return query
 }
 
 export async function GET(request: NextRequest) {
@@ -32,11 +93,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ tasks: tasks.map(serializeTask) })
   }
 
+  const query = await getTaskQuery(request, session.user.id)
   const { page, limit } = getPaginationParams(request)
-  const total = await Task.countDocuments({ userId: session.user.id })
+  const total = await Task.countDocuments(query)
   const totalPages = Math.max(Math.ceil(total / limit), 1)
   const currentPage = Math.min(page, totalPages)
-  const tasks = await Task.find({ userId: session.user.id })
+  const tasks = await Task.find(query)
     .sort({ createdAt: -1, _id: -1 })
     .skip((currentPage - 1) * limit)
     .limit(limit)
